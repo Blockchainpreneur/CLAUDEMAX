@@ -1,0 +1,13 @@
+tui/sessions/
+.env
+.env.*
+.swarm/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+.claude-flow/
+*.key
+*.pem
+secrets.json
