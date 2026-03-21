@@ -11,3 +11,8 @@ __pycache__/
 *.key
 *.pem
 secrets.json
+tui/.claude/
+tui/.mcp.json
+tui/CLAUDE.md
+.mcp.json
+CLAUDE.md
