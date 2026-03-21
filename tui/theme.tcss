@@ -1,360 +1,416 @@
-/* econ.vibe theme — Linear/Vercel aesthetic */
+/* ═══════════════════════════════════════════════════════════
+   econ.vibe — Linear/Vercel dark aesthetic
+   ═══════════════════════════════════════════════════════════ */
 
 Screen {
-    background: #0a0a0a;
-    color: #ededed;
+    background: #0d0d0d;
+    color: #e1e1e1;
 }
 
-/* ── Layout ── */
+/* ── Root layout ─────────────────────────────────────────── */
+#root {
+    layout: vertical;
+    height: 1fr;
+}
+
 #layout {
     layout: horizontal;
     height: 1fr;
 }
 
+/* ── Sidebar ─────────────────────────────────────────────── */
 #sidebar {
-    width: 20;
-    min-width: 18;
-    background: #111111;
-    border-right: solid #2a2a2a;
-    padding: 0 1;
+    width: 24;
+    min-width: 22;
+    background: #0d0d0d;
+    border-right: solid #1e1e1e;
+    padding: 0;
     overflow-y: auto;
+    scrollbar-size: 1 1;
+    scrollbar-color: #1e1e1e #0d0d0d;
 }
 
+/* ── Kanban area ─────────────────────────────────────────── */
 #kanban-scroll {
     width: 1fr;
     height: 1fr;
     overflow-x: auto;
     overflow-y: hidden;
+    background: #0d0d0d;
+    scrollbar-size: 1 1;
+    scrollbar-color: #1e1e1e #0d0d0d;
 }
 
 #kanban {
     layout: horizontal;
     height: 1fr;
-    min-width: 98;
-    padding: 0 1;
+    min-width: 112;
+    padding: 0;
+    background: #0d0d0d;
 }
 
+/* ── Right panel ─────────────────────────────────────────── */
 #right-panel {
-    width: 22;
-    min-width: 18;
-    background: #111111;
-    border-left: solid #2a2a2a;
-    padding: 0 1;
-    overflow-y: auto;
-}
-
-/* ── Sidebar ── */
-#app-title {
-    text-align: center;
-    color: #5865f2;
-    text-style: bold;
-    padding: 1 0;
-    border-bottom: solid #2a2a2a;
-}
-
-.sidebar-section-label {
-    color: #444444;
-    text-style: bold;
-    margin-top: 1;
-    margin-bottom: 0;
-    padding: 0;
-}
-
-.sidebar-item {
-    color: #666666;
-    padding: 0;
-    margin: 0;
-}
-
-.sidebar-item:hover {
-    color: #ededed;
-    background: #1a1a1a;
-}
-
-.sidebar-item-active {
-    color: #ededed;
-    background: #1a1a1a;
-}
-
-.sidebar-cost {
-    color: #f472b6;
-    text-style: bold;
-    margin-top: 1;
-    border-top: solid #2a2a2a;
-    padding-top: 1;
-}
-
-.sidebar-status {
-    color: #666666;
-    padding: 0;
-}
-
-/* ── Kanban columns ── */
-.kanban-column {
-    width: 24;
+    width: 26;
     min-width: 22;
+    background: #0d0d0d;
+    border-left: solid #1e1e1e;
+    padding: 0;
+    overflow-y: auto;
+    scrollbar-size: 1 1;
+    scrollbar-color: #1e1e1e #0d0d0d;
+}
+
+/* ── Kanban columns ──────────────────────────────────────── */
+.kanban-column {
+    width: 28;
+    min-width: 24;
     height: 1fr;
-    margin: 0 1;
+    margin: 0;
+    padding: 0 1;
     layout: vertical;
+    border-right: solid #111111;
 }
 
 .column-header {
-    height: 3;
-    padding: 0 1;
-    border-bottom: solid #2a2a2a;
-    margin-bottom: 1;
+    height: 4;
+    padding: 1 0 0 0;
+    margin-bottom: 0;
 }
-
-.column-title {
-    text-style: bold;
-    color: #ededed;
-}
-
-.column-count {
-    color: #444444;
-}
-
-.col-thinking   { border-top: tall #7c3aed; }
-.col-designing  { border-top: tall #2563eb; }
-.col-developing { border-top: tall #0891b2; }
-.col-testing    { border-top: tall #d97706; }
-.col-reviewing  { border-top: tall #9333ea; }
-.col-deploying  { border-top: tall #16a34a; }
-.col-done       { border-top: tall #374151; }
 
 .column-cards {
     overflow-y: auto;
     height: 1fr;
+    padding: 0;
+    scrollbar-size: 1 1;
+    scrollbar-color: #1a1a1a #0d0d0d;
 }
 
-/* ── Agent cards ── */
+/* Column accent top borders */
+.col-thinking   { border-top: outer #7c3aed; }
+.col-designing  { border-top: outer #3b82f6; }
+.col-developing { border-top: outer #06b6d4; }
+.col-testing    { border-top: outer #f59e0b; }
+.col-reviewing  { border-top: outer #a855f7; }
+.col-deploying  { border-top: outer #22c55e; }
+.col-done       { border-top: outer #374151; }
+
+/* ── Agent cards ─────────────────────────────────────────── */
 .agent-card {
-    background: #1a1a1a;
-    border: solid #2a2a2a;
-    margin-bottom: 1;
-    padding: 1;
+    background: #111111;
+    border: tall #1e1e1e;
+    margin: 0 0 1 0;
+    padding: 0 1;
     height: auto;
-    min-height: 7;
+    min-height: 6;
 }
 
 .agent-card:hover {
-    background: #222222;
-    border: solid #3a3a3a;
+    background: #161616;
+    border: tall #2a2a2a;
 }
 
 .agent-card.status-thinking {
-    border: solid #7c3aed;
+    border: tall #5b21b6;
+    background: #110d1a;
 }
 
 .agent-card.status-working {
-    border: solid #0891b2;
+    border: tall #0e7490;
+    background: #0a1218;
 }
 
 .agent-card.status-done {
-    border: solid #22c55e;
-    opacity: 0.7;
+    border: tall #166534;
+    background: #0a120d;
 }
 
 .agent-card.status-error {
-    border: solid #ef4444;
+    border: tall #991b1b;
+    background: #120a0a;
 }
 
 .agent-card.status-idle {
-    border: solid #2a2a2a;
-    opacity: 0.5;
+    border: tall #1a1a1a;
+    background: #0e0e0e;
 }
 
-.card-name {
-    text-style: bold;
-    color: #ededed;
-    margin-bottom: 0;
-}
-
-.card-task {
-    color: #666666;
-    overflow: hidden;
-    margin-bottom: 1;
-}
-
-.card-progress {
-    color: #5865f2;
-    margin-bottom: 0;
-}
-
-.card-meta {
-    color: #444444;
-}
-
-/* ── Empty state ── */
-.empty-state {
-    color: #2a2a2a;
+/* ── Empty column state ──────────────────────────────────── */
+.empty-col {
+    color: #222222;
     text-align: center;
-    padding: 4 0;
+    padding: 3 0;
+    height: auto;
 }
 
-/* ── Right panel ── */
-.panel-section {
-    border-bottom: solid #2a2a2a;
-    padding-bottom: 1;
-    margin-bottom: 1;
-}
-
-.panel-label {
-    color: #444444;
-    text-style: bold;
-    margin-bottom: 0;
-}
-
-.panel-value {
-    color: #ededed;
-    margin: 0;
-}
-
-.panel-value-accent {
-    color: #5865f2;
-    text-style: bold;
-}
-
-.panel-value-cost {
-    color: #f472b6;
-    text-style: bold;
-}
-
-.panel-value-success {
-    color: #22c55e;
-}
-
-.live-indicator {
-    color: #22c55e;
-}
-
-/* ── Bottom bar ── */
+/* ── Bottom bar ──────────────────────────────────────────── */
 #bottom-bar {
-    height: 7;
-    background: #111111;
-    border-top: solid #2a2a2a;
-    padding: 0 1;
+    height: 6;
+    background: #080808;
+    border-top: solid #1a1a1a;
     layout: vertical;
+    padding: 0;
 }
 
-#prompt-row {
+#prompt-area {
     layout: horizontal;
     height: 3;
     align: left middle;
-    border-bottom: solid #2a2a2a;
+    background: #0d0d0d;
+    border-bottom: solid #1a1a1a;
+    padding: 0 1;
 }
 
-#prompt-prefix {
+#prompt-label {
     color: #5865f2;
     text-style: bold;
-    width: 4;
+    width: 6;
+    height: 1;
+    content-align: left middle;
 }
 
 #prompt-input {
-    background: #111111;
+    background: #0d0d0d;
     border: none;
-    color: #ededed;
+    color: #e1e1e1;
     width: 1fr;
-    height: 3;
+    padding: 0;
 }
 
 #prompt-input:focus {
     border: none;
-    outline: none;
+    background: #0d0d0d;
 }
 
-#template-row {
+#actions-area {
     layout: horizontal;
-    height: 2;
+    height: 3;
     align: left middle;
-}
-
-.template-btn {
-    background: #1a1a1a;
-    border: solid #2a2a2a;
-    color: #666666;
-    margin-right: 1;
     padding: 0 1;
-    height: 1;
+    background: #080808;
 }
 
-.template-btn:hover {
-    background: #222222;
-    color: #ededed;
-    border: solid #5865f2;
-}
-
-#go-btn {
-    background: #5865f2;
-    border: solid #5865f2;
-    color: #ffffff;
-    text-style: bold;
+.action-btn {
+    background: #111111;
+    border: tall #1e1e1e;
+    color: #555555;
+    margin-right: 1;
     padding: 0 2;
+    min-width: 14;
     height: 1;
 }
 
-#go-btn:hover {
-    background: #6875f5;
-}
-
-#keybind-row {
-    color: #2a2a2a;
-    text-align: center;
-    height: 1;
-    padding-top: 0;
-}
-
-/* ── Notifications ── */
-.notification {
+.action-btn:hover {
     background: #1a1a1a;
-    border: solid #2a2a2a;
-    padding: 1;
-    margin: 1;
-    layer: notification;
+    color: #cccccc;
+    border: tall #3a3a3a;
 }
 
-.notification.error {
-    border: solid #ef4444;
-    color: #ef4444;
+#dispatch-btn {
+    background: #3730a3;
+    border: tall #4f46e5;
+    color: #c7d2fe;
+    text-style: bold;
+    padding: 0 3;
+    height: 1;
+    min-width: 10;
 }
 
-.notification.success {
-    border: solid #22c55e;
-    color: #22c55e;
+#dispatch-btn:hover {
+    background: #4338ca;
+    border: tall #6366f1;
+    color: #e0e7ff;
 }
 
-/* ── Loading screen ── */
+#keybinds {
+    color: #222222;
+    text-align: right;
+    height: 1;
+    width: 1fr;
+    content-align: right middle;
+}
+
+/* ── Loading screen ──────────────────────────────────────── */
 LoadingScreen {
-    background: #0a0a0a;
+    background: #0d0d0d;
     align: center middle;
     layout: vertical;
 }
 
-#loading-title {
-    color: #5865f2;
+#loading-logo {
+    color: #4f46e5;
     text-style: bold;
     text-align: center;
-    margin-bottom: 1;
+    padding: 0 2;
 }
 
-#loading-sub {
-    color: #444444;
+#loading-tagline {
+    color: #333333;
     text-align: center;
+    margin-top: 1;
     margin-bottom: 2;
 }
 
-#loading-bar {
-    width: 40;
-    color: #5865f2;
+#loading-steps {
+    color: #2a2a2a;
+    text-align: center;
+    margin-top: 1;
+    height: 1;
 }
 
-/* ── Size warning ── */
+#loading-progress {
+    width: 50;
+    color: #4f46e5;
+    margin: 0 auto;
+}
+
+/* ── Size warning ────────────────────────────────────────── */
 SizeWarningScreen {
-    background: #0a0a0a;
+    background: #0d0d0d;
     align: center middle;
 }
 
-#size-warning {
+#size-msg {
     color: #f59e0b;
     text-align: center;
+    border: solid #333333;
+    padding: 2 4;
+    background: #111111;
+}
+
+/* ── Sidebar detail ──────────────────────────────────────── */
+.sb-title-area {
+    padding: 1 1 0 1;
+    border-bottom: solid #1a1a1a;
+    height: 5;
+    background: #0a0a0a;
+}
+
+.sb-section {
+    padding: 0 1;
+    border-bottom: solid #111111;
+    margin-bottom: 0;
+}
+
+.sb-section-hdr {
+    color: #2a2a2a;
+    text-style: bold;
+    padding: 1 0 0 0;
+    height: 2;
+}
+
+.sb-row {
+    color: #555555;
+    height: 1;
+    padding: 0;
+}
+
+.sb-row-active {
+    color: #c7d2fe;
+    height: 1;
+    padding: 0;
+    background: #0f0f1a;
+}
+
+.sb-row-mem {
+    color: #3a3a3a;
+    height: 1;
+    padding: 0;
+}
+
+.sb-footer {
+    padding: 1 1;
+    border-top: solid #1a1a1a;
+}
+
+.sb-footer-cost {
+    color: #db2777;
+    text-style: bold;
+    height: 1;
+}
+
+.sb-footer-stat {
+    color: #333333;
+    height: 1;
+}
+
+/* ── Right panel detail ──────────────────────────────────── */
+.rp-section {
+    padding: 1 1;
+    border-bottom: solid #111111;
+}
+
+.rp-label {
+    color: #2a2a2a;
+    text-style: bold;
+    height: 1;
+    margin-bottom: 0;
+}
+
+.rp-val {
+    color: #555555;
+    height: 1;
+}
+
+.rp-val-hi {
+    color: #c7d2fe;
+    text-style: bold;
+    height: 1;
+}
+
+.rp-val-cost {
+    color: #ec4899;
+    text-style: bold;
+    height: 1;
+}
+
+.rp-val-save {
+    color: #16a34a;
+    height: 1;
+}
+
+.rp-btn {
+    background: #111111;
+    border: tall #1e1e1e;
+    color: #444444;
+    margin-top: 1;
+    padding: 0 1;
+    height: 1;
+    width: 1fr;
+}
+
+.rp-btn:hover {
+    background: #1a1a1a;
+    color: #aaaaaa;
+    border: tall #3a3a3a;
+}
+
+.rp-btn-live {
+    background: #052e16;
+    border: tall #166534;
+    color: #86efac;
+    margin-top: 1;
+    padding: 0 1;
+    height: 1;
+    width: 1fr;
+}
+
+.rp-btn-live:hover {
+    background: #14532d;
+    color: #bbf7d0;
+}
+
+.rp-btn-deploy {
+    background: #1e1b4b;
+    border: tall #3730a3;
+    color: #a5b4fc;
+    margin-top: 0;
+    padding: 0 1;
+    height: 1;
+    width: 1fr;
+}
+
+.rp-btn-deploy:hover {
+    background: #312e81;
+    color: #c7d2fe;
 }
