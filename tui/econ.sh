@@ -1,1035 +1,647 @@
 #!/usr/bin/env bash
-# =============================================================================
-#  econ.vibe — The AI Development Operating System
-#  Pure Bash + Tmux TUI  |  256-color ANSI  |  No dependencies beyond bash/tmux
-# =============================================================================
+# econ.vibe ─ The AI Development Operating System
+# Pure Bash TUI  │  256-color  │  Tmux workspaces
+# ──────────────────────────────────────────────────────────────────────────────
 
-set -euo pipefail
+# ── Guard ─────────────────────────────────────────────────────────────────────
+[[ -t 0 && -t 1 ]] || { echo "econ.vibe requires a real terminal." >&2; exit 1; }
 
-# ---------------------------------------------------------------------------
-# Guard: require a real terminal
-# ---------------------------------------------------------------------------
-if [[ ! -t 0 || ! -t 1 ]]; then
-  echo "econ.vibe requires an interactive terminal." >&2
-  exit 1
-fi
+# NO set -e  ← intentional: TUI scripts must never die on non-zero subcommands
 
-# ---------------------------------------------------------------------------
-# 256-color palette
-# ---------------------------------------------------------------------------
-PURPLE='\033[38;5;99m'
-LPURPLE='\033[38;5;141m'
-CYAN='\033[38;5;75m'
-GREEN='\033[38;5;78m'
-YELLOW='\033[38;5;220m'
-RED='\033[38;5;203m'
-GRAY='\033[38;5;240m'
-LGRAY='\033[38;5;250m'
-WHITE='\033[38;5;255m'
-MUTED='\033[38;5;238m'
-BG_SEL='\033[48;5;55m'
-BG_CARD='\033[48;5;234m'
-BOLD='\033[1m'
-DIM='\033[2m'
-RESET='\033[0m'
-CLEAR_LINE='\033[2K'
-HIDE_CURSOR='\033[?25l'
-SHOW_CURSOR='\033[?25h'
-
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-CONFIG_DIR="${HOME}/.config/econ-vibe"
-PROJECTS_FILE="${CONFIG_DIR}/projects.json"
-mkdir -p "${CONFIG_DIR}"
-
-# ---------------------------------------------------------------------------
-# Terminal cleanup on exit
-# ---------------------------------------------------------------------------
-cleanup() {
-  tput cnorm 2>/dev/null || true   # show cursor
-  tput rmcup 2>/dev/null || true   # restore screen
-  tput sgr0  2>/dev/null || true   # reset attrs
-  stty echo  2>/dev/null || true   # restore echo
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+_exit() {
+  printf '\033[?25h'     # show cursor
+  printf '\033[?1049l'   # leave alternate screen
+  printf '\033[0m'       # reset colors
+  stty echo 2>/dev/null
+  rm -f /tmp/ev-ruflo.tmp /tmp/ev-spin.pid
 }
-trap cleanup EXIT INT TERM
+trap _exit EXIT INT TERM HUP
 
-# ---------------------------------------------------------------------------
-# Terminal helpers
-# ---------------------------------------------------------------------------
-term_cols()  { tput cols;  }
-term_rows()  { tput lines; }
+# ── Init ──────────────────────────────────────────────────────────────────────
+printf '\033[?1049h'     # enter alternate screen
+printf '\033[?25l'       # hide cursor
+printf '\033[2J'         # clear
+stty -echo 2>/dev/null
 
-# Move cursor to row,col (1-based)
-cursor_at() { printf '\033[%d;%dH' "$1" "$2"; }
+# ── Palette (256-color ANSI) ──────────────────────────────────────────────────
+P='\033[38;5;99m'    # purple  – brand
+V='\033[38;5;141m'   # violet  – accent
+C='\033[38;5;75m'    # cyan    – interactive
+G='\033[38;5;78m'    # green   – success
+Y='\033[38;5;220m'   # yellow  – cost / money
+R='\033[38;5;203m'   # red     – error
+A='\033[38;5;241m'   # ash     – secondary text
+L='\033[38;5;250m'   # light   – body text
+W='\033[38;5;255m'   # white   – headers
+M='\033[38;5;238m'   # muted   – borders
+S='\033[48;5;55m'    # sel bg  – selected row
+B='\033[1m'          # bold
+D='\033[2m'          # dim
+Z='\033[0m'          # reset
 
-# Clear from cursor to end of line
-clear_eol()  { printf '%b' "${CLEAR_LINE}"; }
+# ── Key reading ───────────────────────────────────────────────────────────────
+getkey() {
+  local k a b
+  IFS= read -rsn1 k
+  if [[ $k == $'\033' ]]; then
+    IFS= read -rsn1 -t 0.05 a 2>/dev/null || a=''
+    IFS= read -rsn1 -t 0.05 b 2>/dev/null || b=''
+    k="$k$a$b"
+  fi
+  printf '%s' "$k"
+}
+K_UP=$'\033[A'
+K_DN=$'\033[B'
+K_RT=$'\033[C'
+K_LT=$'\033[D'
+K_EN=$'\n'
+K_CR=$'\r'
 
-# Print centered in $1 cols
-center() {
-  local text="$1" width="$2"
-  local clean; clean="$(printf '%b' "${text}" | sed 's/\033\[[0-9;]*[mK]//g')"
-  local len=${#clean}
-  local pad=$(( (width - len) / 2 ))
-  printf '%*s%b%*s' "${pad}" '' "${text}" $(( width - len - pad )) ''
+# ── Terminal size (refreshed before each draw) ─────────────────────────────────
+TW=80; TH=24
+rsz() { TW=$(tput cols); TH=$(tput lines); }
+
+# ── Cursor positioning (1-based row col) ─────────────────────────────────────
+at() { printf '\033[%d;%dH' "$1" "$2"; }
+
+# ── Repeat a character N times ─────────────────────────────────────────────────
+rep() {
+  local c="$1" n="$2" s=''
+  local i; for ((i=0;i<n;i++)); do s+="$c"; done
+  printf '%s' "$s"
 }
 
-# Repeat a character $2 times
-repeat_char() {
-  local char="$1" n="$2" result=""
-  local i; for (( i=0; i<n; i++ )); do result+="${char}"; done
-  printf '%s' "${result}"
-}
+# ── Config & project storage ───────────────────────────────────────────────────
+CFG="$HOME/.config/econ-vibe"
+PF="$CFG/projects.json"
+mkdir -p "$CFG"
+[[ -f "$PF" ]] || printf '[]' >"$PF"
 
-# ---------------------------------------------------------------------------
-# JSON helpers (python3, no jq needed)
-# ---------------------------------------------------------------------------
-json_get() {
-  # json_get <file> <python_expr>  — e.g. json_get projects.json 'data[0]["name"]'
-  python3 -c "
+_py_load() {
+  python3 - "$PF" <<'PY'
 import json, sys
-try:
-    data = json.load(open('${1}'))
-    print(${2})
-except Exception as e:
-    print('')
-" 2>/dev/null || true
-}
-
-projects_load() {
-  if [[ ! -f "${PROJECTS_FILE}" ]]; then
-    echo '[]' > "${PROJECTS_FILE}"
-  fi
-  python3 -c "
-import json
-data = json.load(open('${PROJECTS_FILE}'))
+try:    data = json.load(open(sys.argv[1]))
+except: data = []
 for p in data:
-    print(p.get('name',''), '|', p.get('slug',''), '|', p.get('type',''), '|',
-          p.get('stack',''), '|', str(p.get('cost_today', 0.0)), '|',
-          str(len(p.get('agents', {}))), '|', p.get('last_active',''))
-" 2>/dev/null || true
+    print("{}|{}|{}|{:.2f}".format(
+        p.get('name','?'), p.get('stack','?'),
+        p.get('type','?'),  p.get('cost_today', 0.0)))
+PY
 }
 
-projects_count() {
-  python3 -c "
-import json
-try:
-    data = json.load(open('${PROJECTS_FILE}'))
-    print(len(data))
-except:
-    print(0)
-" 2>/dev/null || echo 0
+_py_save() {
+  # args: name type stack path goal
+  python3 - "$PF" "$1" "$2" "$3" "$4" "$5" <<'PY'
+import json, sys, datetime
+pf,name,typ,stack,path,goal = sys.argv[1:]
+try:    data = json.load(open(pf))
+except: data = []
+data.append({"name":name,"type":typ,"stack":stack,"path":path,
+             "goal":goal,"cost_today":0.0,
+             "created":datetime.date.today().isoformat(),
+             "last_active":datetime.date.today().isoformat()})
+json.dump(data, open(pf,'w'), indent=2)
+PY
 }
 
-project_add() {
-  # project_add <name> <slug> <path> <type> <stack> <goal> <users> <constraints> <agents_json>
-  python3 - <<PYEOF
-import json, os, datetime
-f = '${PROJECTS_FILE}'
-try:
-    data = json.load(open(f))
-except:
-    data = []
-data.append({
-    "name":        "${1}",
-    "slug":        "${2}",
-    "path":        "${3}",
-    "type":        "${4}",
-    "stack":       "${5}",
-    "goal":        "${6}",
-    "users":       "${7}",
-    "constraints": "${8}",
-    "agents":      json.loads('${9}'),
-    "cost_today":  0.0,
-    "created":     datetime.date.today().isoformat(),
-    "last_active": datetime.date.today().isoformat()
-})
-json.dump(data, open(f, 'w'), indent=2)
-PYEOF
+# ── Project arrays ─────────────────────────────────────────────────────────────
+declare -a PN PS PT PC   # name stack type cost
+PC_COUNT=0
+
+reload() {
+  PN=(); PS=(); PT=(); PC=(); PC_COUNT=0
+  while IFS='|' read -r n s t c; do
+    PN+=("$n"); PS+=("$s"); PT+=("$t"); PC+=("$c")
+    (( PC_COUNT++ )) || true
+  done < <(_py_load)
 }
 
-total_cost_today() {
-  python3 -c "
-import json
-try:
-    data = json.load(open('${PROJECTS_FILE}'))
-    print('\${:.2f}'.format(sum(p.get('cost_today', 0.0) for p in data)))
-except:
-    print('\$0.00')
-" 2>/dev/null || echo '$0.00'
+# ── Ruflo status (async, cached) ───────────────────────────────────────────────
+RUFLO_OK=0
+_last_check=0
+
+_check_ruflo_bg() {
+  (
+    if npx ruflo@latest daemon status 2>/dev/null | grep -qi running; then
+      printf '1'
+    else
+      printf '0'
+    fi
+  ) > /tmp/ev-ruflo.tmp 2>/dev/null &
 }
 
-# ---------------------------------------------------------------------------
-# Service status checks
-# ---------------------------------------------------------------------------
-ruflo_status() {
-  if npx ruflo@latest daemon status 2>/dev/null | grep -qi "running"; then
-    printf "${GREEN}● running${RESET}"
-  else
-    printf "${GRAY}○ stopped${RESET}"
+_update_ruflo() {
+  local now; now=$(date +%s)
+  if (( now - _last_check > 30 )); then
+    _last_check=$now
+    _check_ruflo_bg
+  fi
+  if [[ -f /tmp/ev-ruflo.tmp ]]; then
+    local v; v=$(cat /tmp/ev-ruflo.tmp 2>/dev/null)
+    [[ $v == '1' ]] && RUFLO_OK=1 || RUFLO_OK=0
   fi
 }
 
-mcp_status() {
-  # Return a short list of active MCPs
-  local mcps
-  mcps=$(claude mcp list 2>/dev/null | grep -c "●" 2>/dev/null || echo 0)
-  printf "${CYAN}%s MCPs${RESET}" "${mcps}"
+# ── Box layout constants ───────────────────────────────────────────────────────
+# Box is centered, max 76 wide
+# Fixed column offsets inside the box (relative to box left edge):
+#   0        = left border │
+#   1        = space
+#   2-3      = sel marker (▶  or   )
+#   4        = space
+#   5-26     = name (22 chars)
+#   27-28    = gap
+#   29-44    = stack (16 chars)
+#   45-46    = gap
+#   47-52    = status (6 chars)
+#   53-54    = gap
+#   55-60    = cost (6 chars)
+#   61-BW-2  = right padding
+#   BW-1     = right border │
+
+_draw_box_row_project() {
+  # args: box_col box_row in_width idx is_selected
+  local bc=$1 br=$2 iw=$3 i=$4 sel=$5
+
+  at "$br" "$bc"
+  printf "${M}│${Z}"
+
+  local name="${PN[$i]:0:22}"
+  local stk="${PS[$i]:0:16}"
+  local cst="${PC[$i]}"
+
+  if [[ $sel -eq 1 ]]; then
+    # full-width purple highlight
+    printf "${S}${W}${B}"
+    printf "  ▶  %-22s  %-16s  ○ idle  \$%-5s" "$name" "$stk" "$cst"
+    # right-pad to fill inner width (5+22+2+16+2+6+2+6 = 61 visible)
+    local used=$(( 2 + 3 + 1 + 22 + 2 + 16 + 2 + 6 + 2 + 1 + ${#cst} ))
+    local rpad=$(( iw - used ))
+    (( rpad < 0 )) && rpad=0
+    printf "%${rpad}s${Z}"
+  else
+    printf "  ${D}${A}●${Z}  ${L}%-22s${Z}  ${A}%-16s${Z}  ${A}○ idle${Z}  ${Y}\$%-5s${Z}" \
+      "$name" "$stk" "$cst"
+    local used2=$(( 2 + 3 + 1 + 22 + 2 + 16 + 2 + 6 + 2 + 1 + ${#cst} ))
+    local rpad2=$(( iw - used2 ))
+    (( rpad2 < 0 )) && rpad2=0
+    printf "%${rpad2}s"
+  fi
+
+  printf "${M}│${Z}"
 }
 
-tmux_available() { command -v tmux &>/dev/null; }
+# ── SCREEN: Main menu ─────────────────────────────────────────────────────────
+SEL=0   # 0..PC_COUNT  (PC_COUNT = New Project row)
 
-# ---------------------------------------------------------------------------
-# Spinner (Braille)
-# ---------------------------------------------------------------------------
-SPINNER_FRAMES=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-SPINNER_IDX=0
-spinner_tick() {
-  printf '%b' "${LPURPLE}${SPINNER_FRAMES[${SPINNER_IDX}]}${RESET}"
-  SPINNER_IDX=$(( (SPINNER_IDX + 1) % ${#SPINNER_FRAMES[@]} ))
-}
+draw_menu() {
+  rsz
+  _update_ruflo
 
-# ---------------------------------------------------------------------------
-# Screen: HEADER (ASCII art)
-# ---------------------------------------------------------------------------
-draw_header() {
-  local cols; cols=$(term_cols)
+  # Box geometry
+  local BW=$(( TW < 80 ? TW - 2 : 76 ))
+  local IN=$(( BW - 2 ))
+  local BC=$(( (TW - BW) / 2 + 1 ))   # box start col
 
-  printf '%b' "${PURPLE}"
-  center "███████╗ ██████╗ ██████╗ ███╗" "${cols}"; echo
-  center "██╔════╝██╔════╝██╔═══██╗████╗  ██╗ ██╗   ██╗██╗██████╗ " "${cols}"; echo
-  center "█████╗  ██║     ██║   ██║██╔██╗ ██║ ██║   ██║██║██╔══██╗" "${cols}"; echo
-  center "██╔══╝  ██║     ██║   ██║██║╚██╗██║ ╚██╗ ██╔╝██║██████╔╝" "${cols}"; echo
-  center "███████╗╚██████╗╚██████╔╝██║ ╚████║  ╚████╔╝ ██║██╔══██╗" "${cols}"; echo
-  center "╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═══╝  ╚═╝╚═════╝ " "${cols}"; echo
-  printf '%b' "${RESET}"
-  printf '%b' "${LGRAY}"; center "The AI Development Operating System" "${cols}"; echo
-  printf '%b' "${RESET}"
-  echo
-}
+  # Rows needed: logo(6) + gap(1) + sub(1) + gap(2) + header(1) +
+  #              divider(1) + blank(1) + projects(PC_COUNT) + blank(1) +
+  #              thin-div(1) + newproj(1) + blank(1) + divider(1) + hints(1) + bottom(1)
+  # = 20 + PC_COUNT
+  local BOX_H=$(( 19 + PC_COUNT ))
+  local BR=$(( (TH - BOX_H) / 2 ))
+  (( BR < 1 )) && BR=1
 
-# ---------------------------------------------------------------------------
-# Screen: STATUS BAR (bottom line)
-# ---------------------------------------------------------------------------
-draw_statusbar() {
-  local cols; cols=$(term_cols)
-  local rows; rows=$(term_rows)
-  local cost; cost=$(total_cost_today)
+  # ── Clear ──
+  printf '\033[2J'
 
-  cursor_at "${rows}" 1
-  printf '%b' "${MUTED}"
-  printf '  ruflo '; ruflo_status; printf '  '
-  printf '%b' "${CYAN}"; printf 'context7 '; printf '%b' "${GREEN}●${RESET}  "
-  printf '%b' "${CYAN}"; printf 'github '; printf '%b' "${GREEN}●${RESET}  "
-  printf '%b' "${YELLOW}"; printf '%s today' "${cost}"
-  printf '%b' "${RESET}"
-}
+  # ── Logo (above box) ──
+  local lr=$(( BR - 7 ))
+  if (( lr >= 1 )); then
+    at "$lr"     1; printf "$(printf '%*s' $(((TW-30)/2)) '')${P}${B}███████╗ ██████╗ ██████╗ ███╗${Z}"
+    at "$((lr+1))" 1; printf "$(printf '%*s' $(((TW-36)/2)) '')${P}${B}██╔════╝██╔════╝██╔═══██╗████╗  ██╗${Z}"
+    at "$((lr+2))" 1; printf "$(printf '%*s' $(((TW-37)/2)) '')${P}${B}█████╗  ██║     ██║   ██║██╔██╗ ██║${Z}${V}${B} ·vibe${Z}"
+    at "$((lr+3))" 1; printf "$(printf '%*s' $(((TW-37)/2)) '')${P}${B}██╔══╝  ██║     ██║   ██║██║╚██╗██║${Z}"
+    at "$((lr+4))" 1; printf "$(printf '%*s' $(((TW-37)/2)) '')${P}${B}███████╗╚██████╗╚██████╔╝██║ ╚████║${Z}"
+    at "$((lr+5))" 1; printf "$(printf '%*s' $(((TW-37)/2)) '')${P}${B}╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝${Z}"
+    at "$((lr+6))" 1
+    local sub="The AI Development Operating System"
+    printf "$(printf '%*s' $(((TW-${#sub})/2)) '')${D}${A}${sub}${Z}"
+  else
+    # Small terminal: inline compact header
+    at "$BR" "$BC"
+    printf "${M}│${Z} ${P}${B}econ.vibe${Z}${D}${A} — AI Development OS${Z}"
+  fi
 
-# ---------------------------------------------------------------------------
-# Screen: PROJECT LIST (main menu)
-# ---------------------------------------------------------------------------
+  # ── Box top ──
+  at "$BR"         "$BC"; printf "${M}╔$(rep '═' $IN)╗${Z}"
+  local r=$(( BR + 1 ))
 
-# Global nav state
-SELECTED=0
+  # ── PROJECTS header ──
+  at "$r" "$BC"
+  printf "${M}║${Z}${W}${B}  PROJECTS${Z}"
+  printf "$(printf '%*s' $(( IN - 10 - 14 )) '')"
+  printf "${D}${A}${PC_COUNT} project(s)  ↑↓${Z}  ${M}║${Z}"
+  (( r++ ))
 
-draw_project_list() {
-  local cols; cols=$(term_cols)
-  local box_width=$(( cols - 4 ))
+  # ── Divider ──
+  at "$r" "$BC"; printf "${M}╠$(rep '═' $IN)╣${Z}"; (( r++ ))
 
-  # Read projects into arrays
-  local -a pnames pslugs ptypes pstacks pcosts pagents
-  local count=0
-  while IFS='|' read -r name slug type stack cost agents last_active; do
-    name="${name# }"; name="${name% }"
-    slug="${slug# }"; slug="${slug% }"
-    type="${type# }"; type="${type% }"
-    stack="${stack# }"; stack="${stack% }"
-    cost="${cost# }"; cost="${cost% }"
-    agents="${agents# }"; agents="${agents% }"
-    pnames[count]="${name}"
-    pslugs[count]="${slug}"
-    ptypes[count]="${type}"
-    pstacks[count]="${stack}"
-    pcosts[count]="${cost}"
-    pagents[count]="${agents}"
-    (( count++ )) || true
-  done < <(projects_load)
+  # ── Empty ──
+  at "$r" "$BC"; printf "${M}│$(printf '%*s' $IN '')│${Z}"; (( r++ ))
 
-  local total="${count}"
-  local box_inner=$(( box_width - 2 ))
-
-  # Box top
-  printf '  %b╔%s╗%b\n' "${PURPLE}" "$(repeat_char '═' "${box_inner}")" "${RESET}"
-
-  # Header row
-  local header_left="  PROJECTS"
-  local header_right="${total} active · ↑↓  "
-  local header_mid=$(( box_inner - ${#header_left} - ${#header_right} - 4 ))
-  printf '  %b║%b' "${PURPLE}" "${RESET}"
-  printf '%b%b  PROJECTS%b' "${BOLD}" "${WHITE}" "${RESET}"
-  printf '%*s' "${header_mid}" ''
-  printf '%b%s%b' "${GRAY}" "${total} active · ↑↓" "${RESET}"
-  printf '  %b║%b\n' "${PURPLE}" "${RESET}"
-
-  # Divider
-  printf '  %b╠%s╣%b\n' "${PURPLE}" "$(repeat_char '═' "${box_inner}")" "${RESET}"
-
-  # Empty line
-  printf '  %b║%b%*s%b║%b\n' "${PURPLE}" "${RESET}" "${box_inner}" '' "${PURPLE}" "${RESET}"
-
-  # Project rows
+  # ── Project rows ──
   local i
-  for (( i=0; i<count; i++ )); do
-    local sel_marker="  "
-    local row_bg=""
-    local row_reset="${RESET}"
-    local name_color="${LGRAY}"
-    local meta_color="${GRAY}"
-    local cost_color="${YELLOW}"
-
-    if [[ "${i}" -eq "${SELECTED}" ]]; then
-      sel_marker="${LPURPLE}▸ ${RESET}"
-      row_bg="${BG_SEL}"
-      name_color="${BG_SEL}${WHITE}${BOLD}"
-      meta_color="${BG_SEL}${LGRAY}"
-      cost_color="${BG_SEL}${YELLOW}"
-    fi
-
-    # Agent indicator
-    local agent_str
-    if [[ "${pagents[$i]}" -gt 0 ]]; then
-      agent_str="${GREEN}●${RESET} ${pagents[$i]} agents"
-    else
-      agent_str="${GRAY}○ idle${RESET}"
-    fi
-
-    # Build left section: marker + name + stack
-    local left_part
-    left_part="$(printf '%-22s' "${pnames[$i]}")  $(printf '%-20s' "${pstacks[$i]}")"
-    local right_part
-    right_part="$(printf '%-14s' "${agent_str//\\033\[*m/}")  \$${pcosts[$i]}"
-
-    # We need clean widths — just format directly
-    printf '  %b║%b ' "${PURPLE}" "${RESET}"
-    printf '%b' "${sel_marker}"
-    printf '%b%-22b%b' "${name_color}" "${pnames[$i]}${RESET}" "${RESET}"
-    printf '  '
-    printf '%b%-20s%b' "${meta_color}" "${pstacks[$i]}" "${RESET}"
-    printf '  '
-    if [[ "${pagents[$i]}" -gt 0 ]]; then
-      printf '%b● %s agents%b' "${GREEN}" "${pagents[$i]}" "${RESET}"
-    else
-      printf '%b○ idle%b     ' "${GRAY}" "${RESET}"
-    fi
-    printf '  %b$%s%b' "${cost_color}" "${pcosts[$i]}" "${RESET}"
-
-    # Pad to box width and close
-    local line_text="${pnames[$i]}  ${pstacks[$i]}"
-    local approx_len=$(( ${#pnames[$i]} + 2 + ${#pstacks[$i]} + 2 + 12 + 2 + 6 + 2 + 4 ))
-    local pad=$(( box_inner - approx_len - 2 ))
-    [[ "${pad}" -lt 0 ]] && pad=0
-    printf '%*s' "${pad}" ''
-    printf ' %b║%b\n' "${PURPLE}" "${RESET}"
+  for (( i=0; i<PC_COUNT; i++ )); do
+    local is_sel=0; [[ $i -eq $SEL ]] && is_sel=1
+    _draw_box_row_project "$BC" "$r" "$IN" "$i" "$is_sel"
+    (( r++ ))
   done
 
-  # Empty line
-  printf '  %b║%b%*s%b║%b\n' "${PURPLE}" "${RESET}" "${box_inner}" '' "${PURPLE}" "${RESET}"
+  # ── Empty ──
+  at "$r" "$BC"; printf "${M}│$(printf '%*s' $IN '')│${Z}"; (( r++ ))
 
-  # Divider
-  printf '  %b║%b  %b%s%b  %b║%b\n' \
-    "${PURPLE}" "${RESET}" \
-    "${MUTED}" "$(repeat_char '─' $(( box_inner - 4 )))" "${RESET}" \
-    "${PURPLE}" "${RESET}"
+  # ── Thin divider ──
+  at "$r" "$BC"; printf "${M}╟$(rep '─' $IN)╢${Z}"; (( r++ ))
 
-  # New project row
-  printf '  %b║%b  %b+%b  New Project%*s%b║%b\n' \
-    "${PURPLE}" "${RESET}" \
-    "${CYAN}" "${RESET}" \
-    $(( box_inner - 16 )) '' \
-    "${PURPLE}" "${RESET}"
+  # ── New Project row ──
+  at "$r" "$BC"; printf "${M}│${Z}"
+  if [[ $SEL -eq $PC_COUNT ]]; then
+    local np="  ▶  + New Project"
+    printf "${S}${C}${B}${np}$(printf '%*s' $(( IN - ${#np} )) '')${Z}"
+  else
+    printf "${C}  +  New Project$(printf '%*s' $(( IN - 16 )) '')${Z}"
+  fi
+  printf "${M}│${Z}"; (( r++ ))
 
-  # Footer divider
-  printf '  %b╠%s╣%b\n' "${PURPLE}" "$(repeat_char '═' "${box_inner}")" "${RESET}"
+  # ── Empty ──
+  at "$r" "$BC"; printf "${M}│$(printf '%*s' $IN '')│${Z}"; (( r++ ))
 
-  # Key hints
-  printf '  %b║%b  ' "${PURPLE}" "${RESET}"
-  printf '%b↑↓%b navigate  ' "${CYAN}" "${RESET}"
-  printf '%b↵%b open  ' "${CYAN}" "${RESET}"
-  printf '%bn%b new  ' "${CYAN}" "${RESET}"
-  printf '%bm%b memory  ' "${CYAN}" "${RESET}"
-  printf '%bq%b quit' "${CYAN}" "${RESET}"
-  printf '%*s%b║%b\n' $(( box_inner - 48 )) '' "${PURPLE}" "${RESET}"
+  # ── Footer divider ──
+  at "$r" "$BC"; printf "${M}╠$(rep '═' $IN)╣${Z}"; (( r++ ))
 
-  printf '  %b╚%s╝%b\n' "${PURPLE}" "$(repeat_char '═' "${box_inner}")" "${RESET}"
+  # ── Key hints ──
+  at "$r" "$BC"
+  printf "${M}║${Z}  ${C}↑↓${Z} navigate  ${C}↵${Z} open  ${C}n${Z} new  ${C}m${Z} memory  ${C}q${Z} quit"
+  printf "$(printf '%*s' $(( IN - 47 )) '')${M}║${Z}"; (( r++ ))
+
+  # ── Box bottom ──
+  at "$r" "$BC"; printf "${M}╚$(rep '═' $IN)╝${Z}"
+
+  # ── Status bar ──
+  at "$TH" 1
+  printf "  ${M}ruflo ${Z}"
+  if [[ $RUFLO_OK -eq 1 ]]; then printf "${G}● running${Z}"; else printf "${A}○ stopped${Z}"; fi
+  printf "  ${M}context7 ${G}●${Z}  ${M}github ${G}●${Z}"
+  printf '\033[K'   # clear rest of line
 }
 
-# ---------------------------------------------------------------------------
-# Wizard helpers
-# ---------------------------------------------------------------------------
+# ── SCREEN: Wizard ────────────────────────────────────────────────────────────
+# State vars filled by wizard
+WZ_NAME=''; WZ_TYPE=''; WZ_STACK=''; WZ_GOAL=''
 
-wizard_box_top() {
-  local title="$1" step="$2" total="$3"
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-  local step_str="Step ${step}/${total}"
-  local title_pad=$(( inner - ${#title} - ${#step_str} - 4 ))
-  [[ "${title_pad}" -lt 1 ]] && title_pad=1
-  printf '  %b┌─ %b%s%b %*s%b%s%b ─%s┐%b\n' \
-    "${CYAN}" "${WHITE}${BOLD}" "${title}" "${RESET}" \
-    "${title_pad}" '' \
-    "${GRAY}" "${step_str}" "${RESET}" \
-    "$(repeat_char '─' 0)" \
-    "${RESET}"
+declare -a TYPE_LABELS=("DeFi / Smart Contracts" "Full Stack Web App" "Mobile App" "Backend API" "CLI Tool" "Other / Custom")
+declare -a TYPE_STACKS=("Solidity, Hardhat, React" "Next.js, Supabase, TypeScript" "React Native, Expo" "Node.js, REST/GraphQL" "TypeScript, Commander" "Custom")
+declare -a TYPE_TYPES=("defi" "fullstack" "mobile" "api" "cli" "custom")
+
+_wz_header() {
+  local step="$1" title="$2"
+  rsz
+  printf '\033[2J'
+  at 2 1
+  local pad=$(( (TW - 52) / 2 ))
+  (( pad < 0 )) && pad=0
+  printf "%${pad}s${P}${B}econ.vibe${Z}${D}${A}  New Project${Z}  ${M}Step ${step}/4${Z}\n"
+  printf "\n%${pad}s${W}${B}${title}${Z}\n\n"
 }
 
-wizard_box_bottom() {
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-  printf '  %b└%s┘%b\n' "${CYAN}" "$(repeat_char '─' "${inner}")" "${RESET}"
-}
+_wz_text_input() {
+  # $1=prompt $2=hint  → prints result on stdout
+  local prompt="$1" hint="$2"
+  rsz
+  local pad=$(( (TW - 60) / 2 ))
+  (( pad < 0 )) && pad=0
+  local val=''
 
-wizard_box_line() {
-  # Print a blank inner line
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-  printf '  %b│%b%*s%b│%b\n' "${CYAN}" "${RESET}" "${inner}" '' "${CYAN}" "${RESET}"
-}
+  # Show hint
+  printf "%${pad}s${D}${A}${hint}${Z}\n\n"
+  printf "%${pad}s${M}┌$(rep '─' 56)┐${Z}\n"
+  printf "%${pad}s${M}│${Z} "
 
-wizard_box_text() {
-  local text="$1"
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-  local clean="${text//\\033\[*m/}"
-  local tlen=${#text}
-  local pad=$(( inner - tlen - 2 ))
-  [[ "${pad}" -lt 0 ]] && pad=0
-  printf '  %b│%b  %b%*s%b│%b\n' "${CYAN}" "${RESET}" "${text}" "${pad}" '' "${CYAN}" "${RESET}"
-}
+  # Save cursor pos
+  local row; row=$(tput lines); row=$(( row / 2 + 3 ))
+  printf '\033[s'   # save cursor
+  stty echo 2>/dev/null
 
-# Text input field — returns value in INPUT_VALUE
-wizard_input() {
-  local prompt="$1"
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-  local field_w=$(( inner - 6 ))
+  local input_col=$(( pad + 3 ))
+  local input_row=7   # approximate
 
-  wizard_box_line
-  wizard_box_text "${LGRAY}${prompt}${RESET}"
-  wizard_box_line
-
-  # Draw input box
-  printf '  %b│%b  %b┌%s┐%b  %b│%b\n' \
-    "${CYAN}" "${RESET}" "${MUTED}" "$(repeat_char '─' "${field_w}")" "${RESET}" "${CYAN}" "${RESET}"
-  printf '  %b│%b  %b│%b ' "${CYAN}" "${RESET}" "${MUTED}" "${RESET}"
-
-  # Read user input with echo
-  tput cnorm
-  stty echo
-  INPUT_VALUE=""
-  local char
+  # Inline read with backspace handling
+  stty -echo 2>/dev/null
+  printf '\033[?25h'   # show cursor for input
   while true; do
-    IFS= read -rsn1 char
-    case "${char}" in
-      $'\n'|$'\r') break ;;
-      $'\177'|$'\b')
-        if [[ -n "${INPUT_VALUE}" ]]; then
-          INPUT_VALUE="${INPUT_VALUE%?}"
-          printf '\b \b'
-        fi
-        ;;
-      '') ;;  # ignore null
-      *) INPUT_VALUE+="${char}"; printf '%s' "${char}" ;;
+    local k
+    IFS= read -rsn1 k
+    if [[ $k == $'\177' || $k == $'\b' ]]; then
+      if [[ ${#val} -gt 0 ]]; then
+        val="${val%?}"
+        printf '\b \b'
+      fi
+    elif [[ $k == $'\n' || $k == $'\r' ]]; then
+      break
+    elif [[ $k == $'\033' ]]; then
+      # Swallow escape sequences
+      IFS= read -rsn1 -t 0.05 2>/dev/null || true
+      IFS= read -rsn1 -t 0.05 2>/dev/null || true
+    else
+      val+="$k"
+      printf '%s' "$k"
+    fi
+  done
+  printf '\033[?25l'   # hide cursor again
+  stty -echo 2>/dev/null
+
+  printf "\n%${pad}s${M}└$(rep '─' 56)┘${Z}\n"
+  printf '%s' "$val"
+}
+
+_wz_menu() {
+  # $1=prompt, rest=options  → prints selected index on stdout
+  local prompt="$1"; shift
+  local -a opts=("$@")
+  local sel=0
+  local n=${#opts[@]}
+
+  rsz
+  local pad=$(( (TW - 60) / 2 ))
+  (( pad < 0 )) && pad=0
+
+  while true; do
+    printf '\033[2J'
+    at 1 1
+
+    # Re-print header context (caller drew it)
+    printf "\n%${pad}s${D}${A}${prompt}${Z}\n\n"
+
+    local i
+    for (( i=0; i<n; i++ )); do
+      if [[ $i -eq $sel ]]; then
+        printf "%${pad}s${S}${W}${B}  ▶  %-52s${Z}\n" '' "${opts[$i]}"
+      else
+        printf "%${pad}s${A}     %-52s${Z}\n" '' "${opts[$i]}"
+      fi
+    done
+
+    printf "\n%${pad}s${D}${A}↑↓ select   ↵ confirm${Z}\n"
+
+    local k; k=$(getkey)
+    case "$k" in
+      "$K_UP")   (( sel > 0 )) && (( sel-- )) ;;
+      "$K_DN")   (( sel < n-1 )) && (( sel++ )) ;;
+      "$K_EN"|"$K_CR") break ;;
+      q|Q) printf '-1'; return ;;
     esac
   done
-  tput civis
-
-  printf '\n'
-  printf '  %b│%b  %b└%s┘%b  %b│%b\n' \
-    "${CYAN}" "${RESET}" "${MUTED}" "$(repeat_char '─' "${field_w}")" "${RESET}" "${CYAN}" "${RESET}"
-  wizard_box_line
+  printf '%d' "$sel"
 }
 
-# Menu selection — returns index in MENU_SEL
-wizard_menu() {
-  local -a options=("${@}")
-  local count=${#options[@]}
-  local sel=0
+run_wizard() {
+  # ── Step 1: Name ──────────────────────────────────────────────────
+  _wz_header "1" "What is your project called?"
+  at 6 1
+  WZ_NAME=$(_wz_text_input "Project name" "This becomes your directory name and CLAUDE.md title")
+  WZ_NAME="${WZ_NAME//[^a-zA-Z0-9 _-]/}"
+  [[ -z "$WZ_NAME" ]] && return 1
 
-  tput civis
-  while true; do
-    # Redraw options
-    local i
-    for (( i=0; i<count; i++ )); do
-      if [[ "${i}" -eq "${sel}" ]]; then
-        printf '  %b│%b  %b▸  %b%b%s%b\n' \
-          "${CYAN}" "${RESET}" "${LPURPLE}" "${RESET}" "${BG_SEL}${WHITE}" "${options[$i]}" "${RESET}"
-      else
-        printf '  %b│%b     %b%s%b\n' \
-          "${CYAN}" "${RESET}" "${LGRAY}" "${options[$i]}" "${RESET}"
-      fi
-    done
-    wizard_box_line
+  # ── Step 2: Type ──────────────────────────────────────────────────
+  printf '\033[2J'; at 1 1
+  _wz_header "2" "What are you building?"
+  local type_idx
+  type_idx=$(_wz_menu "Choose the project type:" "${TYPE_LABELS[@]}")
+  [[ $type_idx == '-1' ]] && return 1
 
-    # Move cursor back up to redraw on next keypress
-    printf '\033[%dA' $(( count + 1 ))
+  WZ_TYPE="${TYPE_TYPES[$type_idx]}"
+  WZ_STACK="${TYPE_STACKS[$type_idx]}"
 
-    # Read key
-    local key
-    IFS= read -rsn1 key
-    if [[ "${key}" == $'\033' ]]; then
-      IFS= read -rsn2 -t 0.1 key || true
-      case "${key}" in
-        '[A') (( sel > 0 )) && (( sel-- )) || true ;;
-        '[B') (( sel < count - 1 )) && (( sel++ )) || true ;;
-      esac
-    elif [[ "${key}" == $'\n' || "${key}" == $'\r' || "${key}" == '' ]]; then
-      # Move cursor back down past the redrawn area
-      printf '\033[%dB' $(( count + 1 ))
-      MENU_SEL="${sel}"
-      return 0
-    fi
-  done
-}
+  # ── Step 3: Goal ──────────────────────────────────────────────────
+  printf '\033[2J'; at 1 1
+  _wz_header "3" "What is the main goal of this project?"
+  at 6 1
+  WZ_GOAL=$(_wz_text_input "One sentence goal" "Keep it short — this goes into your CLAUDE.md context")
+  [[ -z "$WZ_GOAL" ]] && WZ_GOAL="To be defined"
 
-# ---------------------------------------------------------------------------
-# WIZARD: New Project (5 steps)
-# ---------------------------------------------------------------------------
+  # ── Step 4: Generate ──────────────────────────────────────────────
+  printf '\033[2J'
+  rsz
+  at $(( TH/2 - 2 )) 1
+  local slug; slug=$(printf '%s' "$WZ_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+  local proj_path="$HOME/code/${slug}"
 
-PROJECT_TYPES=(
-  "DeFi / Smart Contracts    Solidity, Hardhat, L2"
-  "Full Stack Web App        Next.js, Supabase, Auth"
-  "Mobile App                React Native, Expo"
-  "Backend API               Node.js, REST/GraphQL"
-  "CLI Tool                  TypeScript, Commander"
-  "Other / Custom            Describe manually"
-)
+  printf "$(printf '%*s' $(((TW-30)/2)) '')${V}⠿${Z} Creating project structure...\n"
 
-PROJECT_TYPE_KEYS=("defi" "fullstack" "mobile" "backend" "cli" "custom")
-PROJECT_STACKS=(
-  "Solidity, Hardhat, React, Ethers.js"
-  "Next.js, Supabase, TypeScript, Tailwind"
-  "React Native, Expo, TypeScript"
-  "Node.js, Express, TypeScript, Prisma"
-  "TypeScript, Commander, Node.js"
-  "Custom"
-)
-
-ARCH_BY_TYPE=(
-  "Use upgradeable proxy pattern for contracts\n- Separate logic from storage\n- Always use OpenZeppelin libraries\n- Audit all external calls"
-  "Use App Router with Server Components\n- Supabase for auth and data\n- Edge functions for APIs\n- TypeScript strict mode"
-  "Expo managed workflow\n- React Query for data fetching\n- Zustand for client state\n- OTA updates via EAS"
-  "RESTful with OpenAPI spec\n- JWT authentication\n- Repository pattern for data access\n- Structured logging"
-  "Commander.js for CLI parsing\n- Ink for interactive output\n- Config in ~/.config/<name>\n- Publish to npm"
-  "Document decisions as you go\n- Keep architecture evolving\n- Prefer composition over inheritance"
-)
-
-wizard_new_project() {
-  local cols; cols=$(term_cols)
-
-  # ---- Step 1: Name ----
-  clear
-  draw_header
-  wizard_box_top "NEW PROJECT" 1 5
-  wizard_box_line
-  wizard_input "Project name"
-  local proj_name="${INPUT_VALUE}"
-  [[ -z "${proj_name}" ]] && return
-
-  wizard_box_text "${DIM}${GRAY}This becomes your project directory and CLAUDE.md title${RESET}"
-  wizard_box_line
-  wizard_box_bottom
-  sleep 0.3
-
-  # ---- Step 2: Type ----
-  clear
-  draw_header
-  wizard_box_top "NEW PROJECT" 2 5
-  wizard_box_line
-  wizard_box_text "${LGRAY}What are you building?${RESET}"
-  wizard_box_line
-
-  MENU_SEL=0
-  wizard_menu "${PROJECT_TYPES[@]}"
-  local type_idx="${MENU_SEL}"
-  local proj_type="${PROJECT_TYPE_KEYS[$type_idx]}"
-  local proj_stack="${PROJECT_STACKS[$type_idx]}"
-  wizard_box_bottom
-
-  # ---- Step 3: Details ----
-  clear
-  draw_header
-  wizard_box_top "NEW PROJECT" 3 5
-  wizard_box_line
-  wizard_input "Main goal (one sentence)"
-  local proj_goal="${INPUT_VALUE}"
-  wizard_box_line
-  wizard_input "Target users"
-  local proj_users="${INPUT_VALUE}"
-  wizard_box_line
-  wizard_input "Key constraints (optional, press enter to skip)"
-  local proj_constraints="${INPUT_VALUE}"
-  wizard_box_bottom
-  sleep 0.2
-
-  # ---- Step 4: Agents ----
-  clear
-  draw_header
-  wizard_box_top "NEW PROJECT" 4 5
-  wizard_box_line
-  wizard_box_text "${LGRAY}Select agent specialists  ${GRAY}←→ adjust count${RESET}"
-  wizard_box_line
-
-  local -a agent_names=("architect" "coder" "tester" "security")
-  local -a agent_descs=("System design + decisions" "Implementation" "Tests + QA" "Security audits")
-  local -a agent_counts=(1 2 1 0)
-  local agent_sel=0
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
-
-  tput civis
-  while true; do
-    local i
-    for (( i=0; i<4; i++ )); do
-      if [[ "${i}" -eq "${agent_sel}" ]]; then
-        printf '  %b│%b  %b▸%b  %b◄ %-12s%b %b%d%b %b►%b  %b%s%b\n' \
-          "${CYAN}" "${RESET}" \
-          "${LPURPLE}" "${RESET}" \
-          "${BG_SEL}${WHITE}" "${agent_names[$i]}" "${RESET}" \
-          "${YELLOW}" "${agent_counts[$i]}" "${RESET}" \
-          "${BG_SEL}${WHITE}" "${RESET}" \
-          "${GRAY}" "${agent_descs[$i]}" "${RESET}"
-      else
-        printf '  %b│%b     %b  %-12s%b  %b%d%b    %b%s%b\n' \
-          "${CYAN}" "${RESET}" \
-          "${LGRAY}" "${agent_names[$i]}" "${RESET}" \
-          "${LGRAY}" "${agent_counts[$i]}" "${RESET}" \
-          "${GRAY}" "${agent_descs[$i]}" "${RESET}"
-      fi
-    done
-
-    local total_agents=0
-    for c in "${agent_counts[@]}"; do (( total_agents += c )) || true; done
-
-    printf '  %b│%b\n' "${CYAN}" "${RESET}"
-    printf '  %b│%b  %bTotal: %d agents%b          %b↵ confirm%b\n' \
-      "${CYAN}" "${RESET}" \
-      "${WHITE}" "${total_agents}" "${RESET}" \
-      "${CYAN}" "${RESET}"
-    printf '  %b│%b\n' "${CYAN}" "${RESET}"
-
-    printf '\033[%dA' 7
-
-    local key
-    IFS= read -rsn1 key
-    if [[ "${key}" == $'\033' ]]; then
-      IFS= read -rsn2 -t 0.1 key || true
-      case "${key}" in
-        '[A') (( agent_sel > 0 )) && (( agent_sel-- )) || true ;;
-        '[B') (( agent_sel < 3 )) && (( agent_sel++ )) || true ;;
-        '[C')
-          local cur="${agent_counts[$agent_sel]}"
-          agent_counts[$agent_sel]=$(( cur + 1 ))
-          ;;
-        '[D')
-          local cur="${agent_counts[$agent_sel]}"
-          [[ "${cur}" -gt 0 ]] && agent_counts[$agent_sel]=$(( cur - 1 )) || true
-          ;;
-      esac
-    elif [[ "${key}" == $'\n' || "${key}" == $'\r' || "${key}" == '' ]]; then
-      printf '\033[%dB' 7
-      break
-    fi
-  done
-
-  wizard_box_bottom
-
-  # Build agents JSON
-  local agents_json="{"
-  local first=1
-  for (( i=0; i<4; i++ )); do
-    [[ "${first}" -eq 0 ]] && agents_json+=","
-    agents_json+="\"${agent_names[$i]}\":${agent_counts[$i]}"
-    first=0
-  done
-  agents_json+="}"
-
-  # ---- Step 5: Generate ----
-  clear
-  draw_header
-  wizard_box_top "NEW PROJECT" 5 5
-  wizard_box_line
-
-  local slug
-  slug="$(printf '%s' "${proj_name}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-')"
-  local proj_path="${HOME}/code/${slug}"
-  local arch_notes="${ARCH_BY_TYPE[$type_idx]}"
-
-  wizard_box_text "${LGRAY}Creating project: ${WHITE}${proj_name}${RESET}"
-  wizard_box_line
-
-  # Show spinner while generating
-  local spin_steps=(
-    "Creating project directory"
-    "Generating CLAUDE.md"
-    "Writing .claude/settings.json"
-    "Saving project metadata"
-    "Initializing Ruflo memory"
-  )
-
-  for step in "${spin_steps[@]}"; do
-    printf '  %b│%b  ' "${CYAN}" "${RESET}"
-    spinner_tick
-    printf '  %b%s%b\n' "${LGRAY}" "${step}" "${RESET}"
-    sleep 0.25
-  done
-
-  wizard_box_line
-
-  # Create directory structure
-  mkdir -p "${proj_path}/.claude" 2>/dev/null || true
+  # Create directory
+  mkdir -p "${proj_path}/.claude"
 
   # Generate CLAUDE.md
-  generate_claude_md \
-    "${proj_path}/CLAUDE.md" \
-    "${proj_name}" \
-    "${PROJECT_TYPES[$type_idx]%  *}" \
-    "${proj_stack}" \
-    "${proj_goal}" \
-    "${proj_users}" \
-    "${proj_constraints}" \
-    "${agents_json}" \
-    "${arch_notes}"
-
-  # Generate .claude/settings.json
-  cat > "${proj_path}/.claude/settings.json" <<SETTINGS
-{
-  "mcpServers": {},
-  "hooks": {
-    "PostToolUse": ["npx ruflo@latest memory store --key 'last-tool' --value '{{tool}}' --namespace '${slug}'"],
-    "Stop": ["npx ruflo@latest memory store --key 'session-end' --value '$(date -u +%Y-%m-%dT%H:%M:%SZ)' --namespace '${slug}'"]
-  },
-  "project": "${slug}"
-}
-SETTINGS
-
-  # Save project to JSON
-  project_add \
-    "${proj_name}" "${slug}" "${proj_path}" \
-    "${proj_type}" "${proj_stack}" \
-    "${proj_goal}" "${proj_users}" "${proj_constraints}" \
-    "${agents_json}"
-
-  # Init Ruflo memory (non-blocking)
-  npx ruflo@latest memory store \
-    --key "project-${slug}" \
-    --value "Project: ${proj_name} | Type: ${proj_type} | Goal: ${proj_goal}" \
-    --namespace "${slug}" 2>/dev/null &
-
-  wizard_box_text "${GREEN}${BOLD}Done!${RESET} ${LGRAY}Project created at ${WHITE}${proj_path}${RESET}"
-  wizard_box_line
-  wizard_box_text "${GRAY}Press any key to return to the project list...${RESET}"
-  wizard_box_bottom
-
-  IFS= read -rsn1 _
-}
-
-# ---------------------------------------------------------------------------
-# Generate CLAUDE.md for a project
-# ---------------------------------------------------------------------------
-generate_claude_md() {
-  local outfile="$1"
-  local name="$2" type="$3" stack="$4" goal="$5"
-  local users="$6" constraints="$7" agents_json="$8" arch_notes="$9"
-
-  # Parse agent roles from JSON
-  local roles=""
-  roles+="- **QB (Quarterback):** Coordinates all agents, breaks down tasks\n"
-  if echo "${agents_json}" | grep -q '"architect":[^0]'; then
-    roles+="- **Architect:** System design, ADRs, patterns\n"
-  fi
-  local coder_count
-  coder_count=$(echo "${agents_json}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('coder',0))" 2>/dev/null || echo 0)
-  if [[ "${coder_count}" -gt 0 ]]; then
-    if [[ "${coder_count}" -gt 1 ]]; then
-      roles+="- **Coder (×${coder_count}):** Implementation, works in parallel\n"
-    else
-      roles+="- **Coder:** Implementation\n"
-    fi
-  fi
-  if echo "${agents_json}" | grep -q '"tester":[^0]'; then
-    roles+="- **Tester:** Tests, coverage, quality assurance\n"
-  fi
-  if echo "${agents_json}" | grep -q '"security":[^0]'; then
-    roles+="- **Security:** Audits, vulnerability scanning, hardening\n"
-  fi
-
-  cat > "${outfile}" <<CLAUDE_MD
-# ${name} — Claude Code Configuration
+  cat > "${proj_path}/CLAUDE.md" <<MDEOF
+# ${WZ_NAME} — Claude Code Configuration
 
 ## Project Context
-**Type:** ${type}
-**Stack:** ${stack}
-**Goal:** ${goal}
-**Users:** ${users}
+**Type:** ${TYPE_LABELS[$type_idx]}
+**Stack:** ${WZ_STACK}
+**Goal:** ${WZ_GOAL}
 
-## Architecture Decisions
-- $(printf '%b' "${arch_notes}" | tr '\n' '\n' | head -1)
-$(printf '%b' "${arch_notes}" | tail -n +2 | sed 's/^/- /')
+## Architecture
+$(case "$WZ_TYPE" in
+  defi)      echo "- Solidity contracts in /contracts\n- Hardhat for testing and deployment\n- React frontend with ethers.js\n- All contracts must be audited before deploy" ;;
+  fullstack) echo "- Next.js App Router for frontend\n- Supabase for database and auth\n- TypeScript throughout\n- API routes in /app/api" ;;
+  mobile)    echo "- React Native with Expo\n- TypeScript strict mode\n- Navigation via expo-router\n- State management with Zustand" ;;
+  api)       echo "- Node.js with TypeScript\n- REST or GraphQL API\n- Input validation at every boundary\n- JWT authentication" ;;
+  cli)       echo "- TypeScript compiled to JS\n- Commander.js for argument parsing\n- Published to npm" ;;
+  *)         echo "- Custom architecture — define as you go" ;;
+esac)
 
-## Key Constraints
-${constraints:-- No constraints specified}
-
-## Agent Roles
-$(printf '%b' "${roles}")
 ## Behavioral Rules
 - Always check Ruflo memory before starting a task
 - Save architectural decisions to memory after each session
-- Use event sourcing for state changes
-- Validate all inputs at system boundaries
 - Never hardcode credentials or API keys
-- Run tests after every code change
-- Keep files under 500 lines
+- Validate all user input at system boundaries
+- Run tests before committing
 
-## Memory Integration
-\`\`\`bash
-# Search project memory
-npx ruflo@latest memory search --query "[topic]" --namespace "$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')"
+## Agent Setup
+- **QB:** Coordinates all agents, breaks down tasks
+- **Architect:** System design and ADRs
+- **Coder:** Implementation
+- **Tester:** Tests and QA
+MDEOF
 
-# Store a decision
-npx ruflo@latest memory store --key "decision-[topic]" --value "[decision]" --namespace "$(printf '%s' "${name}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')"
-\`\`\`
-CLAUDE_MD
+  # Save to projects list
+  _py_save "$WZ_NAME" "$WZ_TYPE" "$WZ_STACK" "$proj_path" "$WZ_GOAL"
+
+  printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} Project created at ${L}${proj_path}${Z}\n"
+  printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} CLAUDE.md generated\n"
+  printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} Added to econ.vibe\n\n"
+  printf "$(printf '%*s' $(((TW-34)/2)) '')${D}${A}Press any key to return to menu...${Z}"
+
+  getkey > /dev/null
+  reload
+  SEL=0
 }
 
-# ---------------------------------------------------------------------------
-# Open project in tmux workspace
-# ---------------------------------------------------------------------------
-open_project_workspace() {
-  local name="$1" slug="$2" proj_path="$3" agents_json="$4"
+# ── SCREEN: Memory viewer ─────────────────────────────────────────────────────
+run_memory() {
+  rsz
+  printf '\033[2J'
+  at 2 1
 
-  # Expand path
-  proj_path="${proj_path/#\~/$HOME}"
+  local pad=$(( (TW - 60) / 2 ))
+  (( pad < 0 )) && pad=0
 
-  if ! tmux_available; then
-    clear
-    draw_header
-    printf '%b\n  tmux is not installed. Install it with: brew install tmux\n%b\n' "${RED}" "${RESET}"
-    printf '  Press any key to return...\n'
-    IFS= read -rsn1 _
+  printf "%${pad}s${P}${B}econ.vibe${Z}  ${W}Ruflo Memory${Z}\n\n"
+
+  local proj_name=''
+  [[ $SEL -lt $PC_COUNT ]] && proj_name="${PN[$SEL]}"
+
+  if [[ -n "$proj_name" ]]; then
+    printf "%${pad}s${D}${A}Project: ${L}${proj_name}${Z}\n\n"
+  fi
+
+  printf "%${pad}s${M}Searching memory...${Z}\n"
+  local query="${proj_name:-recent patterns}"
+
+  local results
+  results=$(npx ruflo@latest memory search --query "$query" --limit 10 2>/dev/null \
+    || printf "${R}Ruflo memory unavailable${Z}")
+
+  printf '\033[2J'; at 2 1
+  printf "%${pad}s${P}${B}econ.vibe${Z}  ${W}Ruflo Memory${Z}\n\n"
+  [[ -n "$proj_name" ]] && printf "%${pad}s${D}${A}Project: ${L}${proj_name}${Z}\n\n"
+
+  local BW=$(( TW < 80 ? TW - 2 : 76 ))
+  local IN=$(( BW - 2 ))
+  local BC=$(( (TW - BW) / 2 + 1 ))
+
+  at "$((TH/2 - 8))" "$BC"; printf "${M}╔$(rep '═' $IN)╗${Z}"
+  local r=$(( TH/2 - 7 ))
+
+  while IFS= read -r line; do
+    [[ $r -ge $(( TH - 3 )) ]] && break
+    at "$r" "$BC"
+    printf "${M}│${Z} ${L}%-${IN}s${Z}${M}│${Z}"
+    # truncate line to IN-2 width
+    (( r++ ))
+  done <<< "${results:-No memories found yet. Start using Claude Code to build up context.}"
+
+  at "$r" "$BC"; printf "${M}╚$(rep '═' $IN)╝${Z}"
+
+  at $(( TH - 1 )) 1
+  printf "  ${D}${A}Press any key to return...${Z}"
+  getkey > /dev/null
+}
+
+# ── SCREEN: Tmux workspace ────────────────────────────────────────────────────
+launch_project() {
+  local idx=$1
+  local name="${PN[$idx]}"
+  local slug; slug=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+  local sess="ev-${slug}"
+
+  # Restore terminal before handing over to tmux
+  printf '\033[?25h\033[?1049l\033[0m'
+  stty echo 2>/dev/null
+
+  if command -v tmux &>/dev/null; then
+    if tmux has-session -t "$sess" 2>/dev/null; then
+      tmux attach-session -t "$sess"
+    else
+      local proj_path="$HOME/code/${slug}"
+      [[ -d "$proj_path" ]] || proj_path="$HOME"
+
+      tmux new-session -d -s "$sess" -x "$TW" -y "$TH" -c "$proj_path"
+
+      # Style the status bar
+      tmux set-option -t "$sess" status-style "bg=#1a1a2e,fg=#eaeaea"
+      tmux set-option -t "$sess" status-left "#[bold,fg=#5865f2] econ.vibe #[default,fg=#444444] │ #[fg=#aaaaaa]${name}  "
+      tmux set-option -t "$sess" status-right "#[fg=#444444]%H:%M "
+      tmux set-option -t "$sess" status-left-length 40
+
+      # QB pane (top, full width)
+      tmux send-keys -t "$sess" "echo ''; echo '  ${name} — QB (Quarterback)'; echo '  Coordinates all agents and breaks down tasks'; echo ''; claude --model claude-sonnet-4-5" Enter
+
+      # Split for specialists if project has a CLAUDE.md
+      local agent_pane
+      tmux split-window -t "$sess" -v -p 40 -c "$proj_path"
+      tmux send-keys -t "$sess" "echo '  Specialist agent ready'; claude --model claude-sonnet-4-5" Enter
+
+      tmux split-window -t "$sess" -h -c "$proj_path"
+      tmux send-keys -t "$sess" "echo '  Specialist agent ready'; claude --model claude-sonnet-4-5" Enter
+
+      # Focus top pane
+      tmux select-pane -t "${sess}:0.0"
+      tmux attach-session -t "$sess"
+    fi
+  else
+    # No tmux — just cd to project and open claude
+    printf '\033[?1049h\033[?25l\033[2J'
+    stty -echo 2>/dev/null
+    rsz
+    at $(( TH/2 )) 1
+    local pad=$(( (TW-50)/2 ))
+    printf "%${pad}s${R}tmux not found.${Z} Install with: ${C}brew install tmux${Z}\n"
+    printf "%${pad}s${D}${A}Press any key...${Z}"
+    getkey > /dev/null
     return
   fi
 
-  local session_name="econ-${slug}"
-
-  # Kill existing session if present
-  tmux kill-session -t "${session_name}" 2>/dev/null || true
-
-  # Get agent counts
-  local coder_count
-  coder_count=$(echo "${agents_json}" | python3 -c "
-import sys, json
-try:
-    d = json.loads(sys.stdin.read())
-    print(d.get('coder', 1))
-except:
-    print(1)
-" 2>/dev/null || echo 1)
-  [[ "${coder_count}" -lt 1 ]] && coder_count=1
-
-  # Create tmux session with QB pane
-  tmux new-session -d -s "${session_name}" -x "$(term_cols)" -y "$(term_rows)"
-
-  # Set tmux status bar
-  tmux set-option -t "${session_name}" status-style "bg=colour235,fg=colour141"
-  tmux set-option -t "${session_name}" status-left " #[fg=colour141,bold]QB #[fg=colour240]· #[fg=colour255]${name} #[fg=colour240]· #[fg=colour78]coordinating... "
-  tmux set-option -t "${session_name}" status-right "#[fg=colour220]\$0.00  #[fg=colour240]$(date +%H:%M)"
-  tmux set-option -t "${session_name}" status-left-length 60
-
-  # Rename first window
-  tmux rename-window -t "${session_name}:0" "workspace"
-
-  # Send QB startup to first pane
-  local qb_context=""
-  if [[ -f "${proj_path}/CLAUDE.md" ]]; then
-    qb_context="$(cat "${proj_path}/CLAUDE.md")"
-  fi
-
-  # Split: left column for architect, right column for coders
-  tmux split-window -t "${session_name}:0" -h -p 65
-
-  # Split right column for coders
-  if [[ "${coder_count}" -ge 2 ]]; then
-    tmux split-window -t "${session_name}:0.1" -v -p 50
-  fi
-
-  # Rename panes via title sequences
-  tmux select-pane -t "${session_name}:0.0" -T "architect"
-  tmux select-pane -t "${session_name}:0.1" -T "coder-1"
-  [[ "${coder_count}" -ge 2 ]] && tmux select-pane -t "${session_name}:0.2" -T "coder-2" || true
-
-  # Select QB (first pane = 0) and send greeting
-  tmux select-pane -t "${session_name}:0.0"
-
-  # Start claude in each pane with context
-  local claude_cmd="cd \"${proj_path}\" && clear && printf '\\033[38;5;141m\\033[1m"
-  tmux send-keys -t "${session_name}:0.0" \
-    "cd \"${proj_path}\" && clear && echo '  architect ready' && claude --model claude-sonnet-4-5" \
-    Enter
-
-  tmux send-keys -t "${session_name}:0.1" \
-    "cd \"${proj_path}\" && clear && echo '  coder-1 ready' && claude --model claude-sonnet-4-5" \
-    Enter
-
-  if [[ "${coder_count}" -ge 2 ]]; then
-    tmux send-keys -t "${session_name}:0.2" \
-      "cd \"${proj_path}\" && clear && echo '  coder-2 ready' && claude --model claude-sonnet-4-5" \
-      Enter
-  fi
-
-  # Select first pane
-  tmux select-pane -t "${session_name}:0.0"
-
-  # Restore terminal before attaching
-  cleanup
-  tmux attach-session -t "${session_name}"
-
-  # Re-enter alternate screen after detach
-  tput smcup
-  tput civis
+  # Re-enter TUI after tmux detach
+  printf '\033[?1049h\033[?25l\033[2J'
+  stty -echo 2>/dev/null
 }
 
-# ---------------------------------------------------------------------------
-# Memory viewer screen
-# ---------------------------------------------------------------------------
-show_memory() {
-  clear
-  draw_header
+# ── Main loop ─────────────────────────────────────────────────────────────────
+reload
+SEL=0
+SCREEN="menu"
 
-  local cols; cols=$(term_cols)
-  local w=$(( cols - 4 ))
-  local inner=$(( w - 2 ))
+# Kick off first ruflo check in background
+_check_ruflo_bg
 
-  printf '  %b╔%s╗%b\n' "${PURPLE}" "$(repeat_char '═' "${inner}")" "${RESET}"
-  printf '  %b║%b  %b%bRUFLO MEMORY%b%*s%b║%b\n' \
-    "${PURPLE}" "${RESET}" \
-    "${BOLD}" "${WHITE}" "${RESET}" \
-    $(( inner - 14 )) '' \
-    "${PURPLE}" "${RESET}"
-  printf '  %b╠%s╣%b\n' "${PURPLE}" "$(repeat_char '═' "${inner}")" "${RESET}"
-  printf '  %b║%b\n' "${PURPLE}" "${RESET}"
+while true; do
+  case "$SCREEN" in
+    menu)
+      draw_menu
+      k=$(getkey)
+      total=$(( PC_COUNT + 1 ))   # projects + New Project
 
-  # Try to fetch memory
-  local mem_output
-  mem_output=$(npx ruflo@latest memory list --limit 20 2>/dev/null || echo "  (ruflo not running or no memory stored)")
-
-  while IFS= read -r line; do
-    printf '  %b║%b  %b%s%b\n' "${PURPLE}" "${RESET}" "${LGRAY}" "${line}" "${RESET}"
-  done <<< "${mem_output}"
-
-  printf '  %b║%b\n' "${PURPLE}" "${RESET}"
-  printf '  %b╠%s╣%b\n' "${PURPLE}" "$(repeat_char '═' "${inner}")" "${RESET}"
-  printf '  %b║%b  %bPress any key to return%b%*s%b║%b\n' \
-    "${PURPLE}" "${RESET}" \
-    "${GRAY}" "${RESET}" \
-    $(( inner - 24 )) '' \
-    "${PURPLE}" "${RESET}"
-  printf '  %b╚%s╝%b\n' "${PURPLE}" "$(repeat_char '═' "${inner}")" "${RESET}"
-
-  IFS= read -rsn1 _
-}
-
-# ---------------------------------------------------------------------------
-# Get project data by index
-# ---------------------------------------------------------------------------
-get_project_field() {
-  local idx="$1" field="$2"
-  python3 -c "
-import json
-try:
-    data = json.load(open('${PROJECTS_FILE}'))
-    print(data[${idx}].get('${field}', ''))
-except Exception as e:
-    print('')
-" 2>/dev/null || true
-}
-
-# ---------------------------------------------------------------------------
-# MAIN LOOP
-# ---------------------------------------------------------------------------
-main() {
-  # Enter alternate screen, hide cursor
-  tput smcup
-  tput civis
-
-  while true; do
-    clear
-    draw_header
-    draw_project_list
-    draw_statusbar
-
-    # Read a single keypress (handle arrow keys)
-    local key
-    IFS= read -rsn1 key
-
-    if [[ "${key}" == $'\033' ]]; then
-      # Escape sequence — read remainder
-      IFS= read -rsn2 -t 0.1 key || true
-      case "${key}" in
-        '[A')  # Up
-          local cnt; cnt=$(projects_count)
-          if [[ "${cnt}" -gt 0 && "${SELECTED}" -gt 0 ]]; then
-            (( SELECTED-- )) || true
+      case "$k" in
+        "$K_UP")
+          (( SEL > 0 )) && (( SEL-- )) || SEL=$(( total - 1 ))
+          ;;
+        "$K_DN")
+          (( SEL < total - 1 )) && (( SEL++ )) || SEL=0
+          ;;
+        "$K_EN"|"$K_CR")
+          if [[ $SEL -eq $PC_COUNT ]]; then
+            SCREEN="wizard"
+          elif [[ $PC_COUNT -gt 0 ]]; then
+            launch_project "$SEL"
           fi
           ;;
-        '[B')  # Down
-          local cnt; cnt=$(projects_count)
-          if [[ "${cnt}" -gt 0 && "${SELECTED}" -lt $(( cnt - 1 )) ]]; then
-            (( SELECTED++ )) || true
-          fi
-          ;;
+        n|N) SCREEN="wizard" ;;
+        m|M) SCREEN="memory" ;;
+        r|R) reload ;;
+        q|Q) exit 0 ;;
       esac
-    else
-      case "${key}" in
-        $'\n'|$'\r'|'')  # Enter — open selected project
-          local cnt; cnt=$(projects_count)
-          if [[ "${cnt}" -gt 0 ]]; then
-            local pname pslugg ppath pagents_json
-            pname=$(get_project_field "${SELECTED}" "name")
-            pslugg=$(get_project_field "${SELECTED}" "slug")
-            ppath=$(get_project_field "${SELECTED}" "path")
-            pagents_json=$(python3 -c "
-import json
-try:
-    data = json.load(open('${PROJECTS_FILE}'))
-    import json as j
-    print(j.dumps(data[${SELECTED}].get('agents', {})))
-except:
-    print('{}')
-" 2>/dev/null || echo '{}')
-            open_project_workspace "${pname}" "${pslugg}" "${ppath}" "${pagents_json}"
-          fi
-          ;;
-        'n'|'N')  # New project
-          wizard_new_project
-          SELECTED=0
-          ;;
-        'm'|'M')  # Memory viewer
-          show_memory
-          ;;
-        'q'|'Q')  # Quit
-          cleanup
-          exit 0
-          ;;
-      esac
-    fi
-  done
-}
+      ;;
 
-main "$@"
+    wizard)
+      run_wizard && true || true
+      SCREEN="menu"
+      ;;
+
+    memory)
+      run_memory
+      SCREEN="menu"
+      ;;
+  esac
+done
