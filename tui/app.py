@@ -504,6 +504,19 @@ class MainScreen(Screen):
         except Exception:
             pass
 
+    def on_resize(self, event) -> None:
+        """Hide sidebar on narrow terminals, hide topbar on very short ones."""
+        try:
+            sidebar = self.query_one("#sidebar")
+            sidebar.set_class(event.size.width < 100, "hidden")
+        except Exception:
+            pass
+        try:
+            topbar = self.query_one("#topbar")
+            topbar.set_class(event.size.height < 28, "hidden")
+        except Exception:
+            pass
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # APP

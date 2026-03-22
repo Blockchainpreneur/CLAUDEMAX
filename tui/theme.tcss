@@ -14,6 +14,10 @@ Screen {
 }
 
 /* ── Top header bar ──────────────────────────────────────── */
+#topbar.hidden {
+    display: none;
+}
+
 #topbar {
     height: 3;
     layout: horizontal;
@@ -97,14 +101,18 @@ Screen {
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 #sidebar {
-    width: 22;
-    min-width: 20;
+    width: 20;
+    min-width: 16;
     background: #111111;
     padding: 0;
     overflow-y: auto;
     scrollbar-size: 1 1;
     scrollbar-color: #2a2a2a #111111;
     border-right: solid #1e1e1e;
+}
+
+#sidebar.hidden {
+    display: none;
 }
 
 .sb-workspace {
@@ -241,15 +249,15 @@ Screen {
 #kanban {
     layout: horizontal;
     height: 1fr;
-    min-width: 100;
+    min-width: 56;
     padding: 1 0 0 0;
     background: #191919;
 }
 
 /* ── Kanban columns ──────────────────────────────────────── */
 .kanban-col {
-    width: 30;
-    min-width: 26;
+    width: 26;
+    min-width: 22;
     height: 1fr;
     margin: 0 1;
     layout: vertical;
@@ -488,7 +496,7 @@ LoadingScreen {
 }
 
 #loading-progress {
-    width: 44;
+    width: 30;
     color: #2383e2;
 }
 

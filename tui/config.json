@@ -2,8 +2,8 @@
   "app": {
     "title": "econ.vibe",
     "refresh_rate": 2,
-    "min_width": 140,
-    "min_height": 42
+    "min_width": 80,
+    "min_height": 24
   },
   "ruflo": {
     "poll_interval": 2,
