@@ -1,0 +1,167 @@
+/*
+ * CLAUDEMAX Signature Theme — Pure Black
+ * Installs with CLAUDEMAX. Applied globally to Claude Code app.
+ *
+ * Usage:
+ *   Browser (Chrome/Safari/Firefox): Install via Stylus extension → paste this file
+ *   Desktop app: Applied automatically by CLAUDEMAX install script
+ */
+
+/* ─── Core background overrides ──────────────────────────────────────────── */
+:root {
+  --color-bg-primary:          #000000 !important;
+  --color-bg-secondary:        #000000 !important;
+  --color-bg-tertiary:         #050505 !important;
+  --color-surface:             #000000 !important;
+  --color-surface-raised:      #080808 !important;
+  --color-surface-overlay:     #0a0a0a !important;
+  --bg-base:                   #000000 !important;
+  --bg-surface:                #000000 !important;
+  --bg-card:                   #080808 !important;
+  --background:                #000000 !important;
+  --background-color:          #000000 !important;
+}
+
+/* ─── Body and root elements ──────────────────────────────────────────────── */
+html,
+body,
+#root,
+#app,
+[data-theme="dark"],
+.dark,
+[class*="dark-mode"] {
+  background-color: #000000 !important;
+}
+
+/* ─── Main layout panels ──────────────────────────────────────────────────── */
+main,
+aside,
+nav,
+header,
+footer,
+section,
+article,
+[role="main"],
+[role="complementary"],
+[role="navigation"] {
+  background-color: #000000 !important;
+}
+
+/* ─── Conversation view ───────────────────────────────────────────────────── */
+[class*="conversation"],
+[class*="message-list"],
+[class*="chat-container"],
+[class*="thread"],
+[class*="messages"],
+[class*="content-area"],
+[class*="main-content"],
+[class*="CodeEditor"],
+[class*="code-view"] {
+  background-color: #000000 !important;
+}
+
+/* ─── Sidebar and panels ──────────────────────────────────────────────────── */
+[class*="sidebar"],
+[class*="panel"],
+[class*="drawer"],
+[class*="menu"],
+[class*="toolbar"],
+[class*="topbar"],
+[class*="header"] {
+  background-color: #000000 !important;
+  border-color: #111111 !important;
+}
+
+/* ─── Input and reply areas ───────────────────────────────────────────────── */
+[class*="input-area"],
+[class*="reply"],
+[class*="composer"],
+[class*="prompt-input"],
+textarea,
+[contenteditable] {
+  background-color: #050505 !important;
+  border-color: #111111 !important;
+}
+
+/* ─── Cards, popups, modals ───────────────────────────────────────────────── */
+[class*="card"],
+[class*="modal"],
+[class*="popup"],
+[class*="dropdown"],
+[class*="tooltip"],
+[class*="overlay"] {
+  background-color: #080808 !important;
+  border-color: #111111 !important;
+}
+
+/* ─── Code blocks (slightly off-black for contrast) ──────────────────────── */
+pre,
+code,
+[class*="code-block"],
+[class*="codeblock"],
+[class*="syntax"] {
+  background-color: #050505 !important;
+  border-color: #111111 !important;
+}
+
+/* ─── Scrollbars ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  background-color: #000000 !important;
+  width: 6px !important;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #000000 !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #1a1a1a !important;
+  border-radius: 3px !important;
+}
+
+/* ─── Borders (keep subtle, not invisible) ────────────────────────────────── */
+[class*="divider"],
+[class*="separator"],
+hr {
+  border-color: #111111 !important;
+  background-color: #111111 !important;
+}
+
+/* ─── Status bar ──────────────────────────────────────────────────────────── */
+[class*="status-bar"],
+[class*="statusbar"],
+[class*="bottom-bar"] {
+  background-color: #000000 !important;
+  border-top-color: #111111 !important;
+}
+
+/* ─── Tabs (Code / Chat / Cowork) ─────────────────────────────────────────── */
+[class*="tab-bar"],
+[class*="tabs"],
+[role="tablist"] {
+  background-color: #000000 !important;
+}
+
+[role="tab"],
+[class*="tab-item"] {
+  background-color: transparent !important;
+}
+
+[role="tab"][aria-selected="true"],
+[class*="tab-item"][class*="active"],
+[class*="tab-item"][class*="selected"] {
+  background-color: #0a0a0a !important;
+}
+
+/* ─── Buttons (keep colored buttons as-is, only background containers) ────── */
+button[class*="ghost"],
+button[class*="outline"],
+button[class*="secondary"] {
+  background-color: #080808 !important;
+  border-color: #1a1a1a !important;
+}
+
+/* ─── Selection highlight ─────────────────────────────────────────────────── */
+::selection {
+  background-color: #1a1a1a !important;
+}

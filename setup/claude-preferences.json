@@ -1,5 +1,6 @@
 {
   "_instructions": "Paste the contents of this file into Claude Desktop → Settings → Personal Preferences (the JSON editor). Remove this _instructions key first.",
+  "_theme_note": "For pure black theme: install setup/claudemax-theme.css via Stylus browser extension at https://add0n.com/stylus.html",
   "theme": "dark",
   "fontSize": 14,
   "fastMode": true,

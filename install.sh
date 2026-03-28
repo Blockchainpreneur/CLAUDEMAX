@@ -168,6 +168,32 @@ LAUNCHER_SCRIPT
   ok "Desktop launcher created: ~/Desktop/econ.vibe.command"
 }
 
+# ── Install CLAUDEMAX pure black theme ───────────────────────────────────────
+install_theme() {
+  mkdir -p "$HOME/.claude"
+  if [ -f "$REPO_DIR/setup/claudemax-theme.css" ]; then
+    cp "$REPO_DIR/setup/claudemax-theme.css" "$HOME/.claude/claudemax-theme.css"
+    ok "CLAUDEMAX pure black theme installed → ~/.claude/claudemax-theme.css"
+  fi
+
+  # Write a one-line Stylus userscript wrapper for web/desktop app
+  cat > "$HOME/.claude/claudemax-theme-install.txt" <<'THEME_INSTRUCTIONS'
+CLAUDEMAX Pure Black Theme — Apply in 30 seconds:
+
+1. Install the free "Stylus" browser extension:
+   Chrome:  https://chrome.google.com/webstore/detail/stylus/clngdbkpkpeebahjckkjfobafhncgmne
+   Safari:  https://apps.apple.com/app/stylus/id1276145049
+   Firefox: https://addons.mozilla.org/addon/styl-us/
+
+2. Open Stylus → "Write new style" → paste ~/.claude/claudemax-theme.css
+
+3. Set URLs to match: claude.ai
+
+Done. Background becomes pure #000000 black. Restarts persist automatically.
+THEME_INSTRUCTIONS
+  ok "Theme install instructions → ~/.claude/claudemax-theme-install.txt"
+}
+
 # ── Start Ruflo daemon ────────────────────────────────────────────────────────
 start_daemon() {
   export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
@@ -184,15 +210,16 @@ print_success() {
   echo ""
   echo "  What's installed:"
   echo "  • Claude Code (global)"
-  echo "  • Ruflo orchestration"
+  echo "  • Multi-agent swarm coordinator (15 agents)"
+  echo "  • Speed skills: parallel-execution, smart-routing, context-compress, personas"
   echo "  • MCP: context7, sequential-thinking, playwright"
-  echo "  • Kanban TUI (~/econ.vibe/tui/)"
-  echo "  • Global Claude hooks (memory, PII redaction)"
+  echo "  • Global Claude hooks (memory, PII redaction, learning)"
+  echo "  • CLAUDEMAX pure black theme → ~/.claude/claudemax-theme.css"
   echo ""
   echo "  Next steps:"
   echo "  1. Add GitHub + Supabase tokens to MCP (see above)"
-  echo -e "  2. ${BOLD}Paste setup/claude-preferences.json into Claude Desktop → Settings → Personal Preferences${RESET}"
-  echo "  3. Double-click econ.vibe on your Desktop to launch"
+  echo -e "  2. ${BOLD}Apply pure black theme: see ~/.claude/claudemax-theme-install.txt${RESET}"
+  echo -e "  3. ${BOLD}Paste setup/claude-preferences.json into Claude Desktop → Settings → Personal Preferences${RESET}"
   echo ""
   echo -e "${CYAN}  Setup complete. Double-click econ.vibe on your Desktop to launch.${RESET}"
   echo ""
@@ -229,6 +256,7 @@ main() {
   step "9/9  Creating desktop launcher"
   create_launcher
 
+  install_theme
   start_daemon
 
   print_success
