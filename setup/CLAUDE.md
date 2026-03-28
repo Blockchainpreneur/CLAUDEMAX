@@ -64,6 +64,13 @@ Part of CLAUDEMAX. Includes [gstack](https://github.com/garrytan/gstack) (Garry 
 - Session memory is synced via auto-memory-hook.mjs on session end
 - All hooks are non-blocking — they enhance but never delay Claude Code
 
+## Subscription: Claude Max (Opus 4.6)
+
+- **Active model**: `claude-opus-4-6` — 1M context window, highest reasoning
+- **3-tier routing**: WASM booster → Haiku 4.5 → **Opus 4.6** (default Tier 3)
+- Max subscription = higher rate limits → more parallel agents viable
+- All complex tasks, architecture, security, DeFi → always route to Opus 4.6
+
 ## Agent Teams & Swarm
 
 - CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is active globally

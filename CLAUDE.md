@@ -59,10 +59,6 @@ These commands are part of CLAUDEMAX's built-in rapid deployment toolkit (includ
 - **Bun v1.0+** — primary runtime for all projects (Node.js fallback on Windows only)
 - **TypeScript** — default language for all new code
 
-### Runtime & Language
-- **Bun v1.0+** — primary runtime for all projects (Node.js fallback on Windows only)
-- **TypeScript** — default language for all new code
-
 ### Infrastructure Defaults
 - **Supabase** — database, auth, and storage backend
 - **Playwright** — browser automation and end-to-end testing
@@ -124,7 +120,7 @@ All builds and tests run via **GitHub CI/CD — never run builds or tests locall
 |------|---------|---------|------|-----------|
 | **1** | Agent Booster (WASM) | <1ms | $0 | Simple transforms (var→const, add types) — Skip LLM |
 | **2** | Haiku | ~500ms | $0.0002 | Simple tasks, low complexity (<30%) |
-| **3** | Sonnet/Opus | 2-5s | $0.003-0.015 | Complex reasoning, architecture, security (>30%) |
+| **3** | **Opus 4.6** (Max) | 2-5s | $0.015 | Complex reasoning, architecture, security, DeFi (>30%) |
 
 - Always check for `[AGENT_BOOSTER_AVAILABLE]` or `[TASK_MODEL_RECOMMENDATION]` before spawning agents
 - Use Edit tool directly when `[AGENT_BOOSTER_AVAILABLE]`

@@ -172,7 +172,7 @@ function getModelName() {
     if (m.includes('sonnet')) return 'Sonnet 4.6';
     if (m.includes('haiku')) return 'Haiku 4.5';
   }
-  return 'Claude Code';
+  return 'Opus 4.6 MAX';
 }
 
 // Get learning stats from memory database (pure stat calls)
@@ -679,16 +679,16 @@ function generateStatusline() {
   const hooksActive = hooks.enabled || 0;
   // Token savings: context compression (50-70%) + smart routing (Haiku 40% of tasks = ~20x cheaper)
   const tokenSavings = hooksActive > 0 ? '~62%' : '~50%';
-  // Speed multiplier: tier routing (Haiku 40% tasks = ~5x avg) × parallel agents (4-5x) vs basic 1x sequential
+  // Speed: tier routing × parallel agents × 1M context (no truncation) vs basic 200K sequential
   const parallelBoost = activeAgents > 1 ? activeAgents + 'x' : '4-5x';
   const speedMulti = activeAgents > 1 ? String(Math.round(activeAgents * 5.4)) + 'x' : '~22x';
   lines.push(c.dim + '\u2500'.repeat(53) + c.reset);
   lines.push(
-    c.bold + c.brightPurple + '\u26A1 CLAUDEMAX' + c.reset + '  ' + c.dim + 'vs basic:' + c.reset + '  ' +
-    c.brightGreen + '\uD83D\uDCB0 tokens ' + tokenSavings + ' saved' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
-    c.brightCyan + '\uD83D\uDE80 ' + parallelBoost + ' parallel \u00D7 5.4x routing = ' + speedMulti + ' faster' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
-    c.brightYellow + '\uD83E\uDD16 15 agents' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
-    c.brightBlue + '\uD83E\uDDE0 3-tier routed' + c.reset
+    c.bold + c.brightPurple + '\u26A1 CLAUDEMAX MAX' + c.reset + '  ' +
+    c.brightGreen + '\uD83D\uDCB0 ' + tokenSavings + ' tokens saved' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
+    c.brightCyan + '\uD83D\uDE80 ' + speedMulti + ' vs basic' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
+    c.brightYellow + '\uD83E\uDD16 ' + parallelBoost + ' \u00D7 5.4x routing' + c.reset + '  ' + c.dim + '\u2502' + c.reset + '  ' +
+    c.bold + c.brightPurple + 'Opus 4.6 \u2022 1M ctx \u2022 15 agents' + c.reset
   );
 
   return lines.join('\n');
