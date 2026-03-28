@@ -3,39 +3,22 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -f .claude-flow/config.yaml ] || (export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH\" && ruflo init 2>/dev/null &)"
-          },
-          {
-            "type": "command",
-            "command": "sh -c 'node ~/.claude/helpers/pii-redactor.mjs 2>/dev/null || true'",
-            "timeout": 2000
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
         "matcher": "Write|Edit|MultiEdit|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'node ~/.claude/helpers/memory-learn.mjs 2>/dev/null || true'",
+            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/pii-redactor.mjs",
             "timeout": 2000
           }
         ]
-      }
-    ],
-    "UserPromptSubmit": [
+      },
       {
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'node ~/.claude/helpers/memory-enrich.mjs 2>/dev/null || true'",
-            "timeout": 3000
+            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true",
+            "timeout": 1500
           }
         ]
       }
@@ -45,18 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'node ~/.claude/helpers/memory-enrich.mjs session-start 2>/dev/null || true'",
-            "timeout": 3000
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'node ~/.claude/helpers/memory-learn.mjs consolidate 2>/dev/null || true'",
+            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && (lsof -ti:4000 > /dev/null 2>&1 || nohup node \"/Users/macbook/Claudecode Tune/src/dashboard-server.mjs\" >> ~/.claude/logs/dashboard.log 2>&1 &) || true",
             "timeout": 3000
           }
         ]
