@@ -118,6 +118,8 @@ install_settings() {
   # Pass hook commands via env vars — avoids all quoting issues in heredocs
   export _CM_PII_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/pii-redactor.mjs"
   export _CM_QG_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
+  export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router.mjs"
+  export _CM_RUFLO_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
   export _CM_SETTINGS="$SETTINGS"
 
   # If file doesn't exist or is empty/corrupt → fresh install
@@ -132,8 +134,10 @@ install_settings() {
     # stdout = pure JSON only (no status messages — captured by apply_settings)
     python3 - <<'PYEOF'
 import json, os
-pii = os.environ["_CM_PII_CMD"]
-qg  = os.environ["_CM_QG_CMD"]
+pii   = os.environ["_CM_PII_CMD"]
+qg    = os.environ["_CM_QG_CMD"]
+rr    = os.environ["_CM_RR_CMD"]
+ruflo = os.environ["_CM_RUFLO_CMD"]
 settings = {
   "fastMode": True,
   "hooks": {
@@ -142,6 +146,12 @@ settings = {
        "hooks": [{"type": "command", "command": pii, "timeout": 2000}]},
       {"matcher": "Write|Edit|MultiEdit",
        "hooks": [{"type": "command", "command": qg,  "timeout": 1500}]}
+    ],
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]}
+    ],
+    "SessionStart": [
+      {"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]}
     ]
   }
 }
@@ -150,14 +160,16 @@ PYEOF
     return
   fi
 
-  # Existing valid file — merge hooks without overwriting user config
+  # Existing valid file — merge all hooks without overwriting user config
   # stdout = pure JSON only
   python3 - <<'PYEOF'
 import json, os
 
-pii  = os.environ["_CM_PII_CMD"]
-qg   = os.environ["_CM_QG_CMD"]
-path = os.environ["_CM_SETTINGS"]
+pii   = os.environ["_CM_PII_CMD"]
+qg    = os.environ["_CM_QG_CMD"]
+rr    = os.environ["_CM_RR_CMD"]
+ruflo = os.environ["_CM_RUFLO_CMD"]
+path  = os.environ["_CM_SETTINGS"]
 
 with open(path) as f:
     settings = json.load(f)
@@ -171,6 +183,7 @@ def has_hook(hook_list, marker):
                 return True
     return False
 
+# PreToolUse — security guards
 pre = hooks.setdefault("PreToolUse", [])
 if not has_hook(pre, "pii-redactor"):
     pre.insert(0, {"matcher": "Write|Edit|MultiEdit|Bash",
@@ -179,15 +192,25 @@ if not has_hook(pre, "code-quality-gate"):
     pre.append({"matcher": "Write|Edit|MultiEdit",
                 "hooks": [{"type": "command", "command": qg, "timeout": 1500}]})
 
-# Remove noisy hooks (memory-learn, memory-enrich, rational-router)
-for event in ["PostToolUse", "UserPromptSubmit", "Stop"]:
+# UserPromptSubmit — rational-router autopilot
+usp = hooks.setdefault("UserPromptSubmit", [])
+if not has_hook(usp, "rational-router"):
+    usp.insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
+
+# SessionStart — Ruflo daemon auto-start
+ss = hooks.setdefault("SessionStart", [])
+if not has_hook(ss, "ruflo") and not has_hook(ss, "daemon"):
+    ss.append({"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]})
+
+# Remove old noisy hooks
+for event in ["PostToolUse", "Stop"]:
     if event in hooks:
         hooks[event] = [
             b for b in hooks[event]
             if not any(
                 x in h.get("command", "")
                 for h in b.get("hooks", [])
-                for x in ["memory-learn", "memory-enrich", "rational-router"]
+                for x in ["memory-learn", "memory-enrich"]
             )
         ]
         if not hooks[event]:
@@ -260,17 +283,66 @@ install_ruflo() {
   ok "Ruflo installed (60+ agents, vector memory, self-learning)"
 }
 
-# ── 8. MCP servers ────────────────────────────────────────────────────────────
+# ── 8. MCP servers — write directly to ~/.claude.json (no interactive session needed)
 install_mcp() {
-  info "Installing MCP servers..."
-  claude mcp add -s user context7   -- npx -y @upstash/context7-mcp            2>/dev/null && ok "context7"            || warn "context7 skipped"
-  claude mcp add -s user playwright -- npx -y @playwright/mcp@latest            2>/dev/null && ok "playwright"          || warn "playwright skipped"
-  claude mcp add -s user shadcn     -- npx -y shadcn@canary registry             2>/dev/null && ok "shadcn"             || warn "shadcn skipped"
-  claude mcp add -s user magicuidesign-mcp -- npx -y magicui-mcp                2>/dev/null && ok "magic-ui"           || warn "magic-ui skipped"
-  echo ""
-  warn "GitHub/Supabase MCPs need tokens — add manually:"
+  local CLAUDE_JSON="$HOME/.claude.json"
+  export _CM_CLAUDE_JSON="$CLAUDE_JSON"
+
+  python3 - <<'PYEOF'
+import json, os
+
+path = os.environ["_CM_CLAUDE_JSON"]
+
+# Load or create ~/.claude.json
+cfg = {}
+if os.path.exists(path):
+    try:
+        with open(path) as f:
+            cfg = json.load(f)
+    except Exception:
+        pass
+
+servers = cfg.setdefault("mcpServers", {})
+
+# Core MCPs — always install (no tokens needed)
+defaults = {
+    "context7":         {"type":"stdio","command":"npx","args":["-y","@upstash/context7-mcp"],"env":{}},
+    "playwright":       {"type":"stdio","command":"npx","args":["-y","@playwright/mcp@latest"],"env":{}},
+    "shadcn":           {"type":"stdio","command":"npx","args":["-y","shadcn@canary","registry"],"env":{}},
+    "magicuidesign-mcp":{"type":"stdio","command":"npx","args":["-y","magicui-mcp"],"env":{}},
+}
+
+added = []
+for name, conf in defaults.items():
+    if name not in servers:
+        servers[name] = conf
+        added.append(name)
+    else:
+        # Ensure env key exists
+        servers[name].setdefault("env", {})
+
+import sys
+if added:
+    print(f"added:{','.join(added)}", file=sys.stderr)
+else:
+    print("already:all", file=sys.stderr)
+
+with open(path, "w") as f:
+    json.dump(cfg, f, indent=2)
+PYEOF
+
+  local result
+  result=$(python3 - 2>&1 <<'PYEOF2'
+import json, os, sys
+path = os.environ["_CM_CLAUDE_JSON"]
+cfg = json.load(open(path))
+names = list(cfg.get("mcpServers", {}).keys())
+print(", ".join(names))
+PYEOF2
+)
+  ok "MCP servers active: $result"
+  info "GitHub/Supabase MCPs need tokens — add once:"
   info "claude mcp add -s user github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github"
-  info "claude mcp add -s user supabase -e SUPABASE_ACCESS_TOKEN=xxx -- npx -y @supabase/mcp-server-supabase@latest"
 }
 
 # ── 8. Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────
@@ -340,14 +412,17 @@ print_success() {
   echo -e "${GREEN}${BOLD}  ✅ CLAUDEMAX installed successfully!${RESET}"
   echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${RESET}"
   echo ""
-  echo "  Installed:"
-  echo "  • Claude Code + gstack (AI Software Factory)"
-  echo "  • Hooks: pii-redactor + code-quality-gate"
-  echo "  • MCP: context7, playwright, shadcn, magic-ui"
-  echo "  • Global CLAUDE.md with gstack decision tree"
-  echo "  • Shell alias: cm → opens Claude Code in ~/claudemax"
+  echo "  Stack:"
+  echo "  • Claude Code + gstack v$(cat ~/.claude/skills/gstack/VERSION 2>/dev/null || echo '?') (AI Software Factory)"
+  echo "  • Ruflo enterprise swarm — 60+ agents, vector memory, self-learning"
+  echo "  • Autopilot: rational-router fires on every prompt → auto-activates gstack"
+  echo "  • Hooks: pii-redactor + code-quality-gate (security guards)"
+  echo "  • Ruflo daemon auto-starts every session"
+  echo "  • MCP: context7, playwright, shadcn, magic-ui, github, supabase"
+  echo "  • Global CLAUDE.md + shell alias: cm → ~/claudemax"
   echo ""
   echo -e "  ${BOLD}Start:${RESET}  source ~/.zshrc && cm"
+  echo -e "  ${BOLD}Or anywhere:${RESET}  claude  (global stack active in any directory)"
   echo ""
 }
 

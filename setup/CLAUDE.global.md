@@ -23,12 +23,15 @@
 - Always validate user input at system boundaries
 - Always sanitize file paths to prevent directory traversal
 
-## Active Hooks (Lean Stack)
+## Active Hooks (Autopilot Stack)
 
+- **rational-router v3** — UserPromptSubmit: auto-detects task, outputs IMPERATIVE directive — EXECUTE it immediately
+  - Trivial (<15%): silent
+  - Medium (15-49%): `[CLAUDEMAX] task:X model:Y → /skill` — use suggested skill + model tier
+  - Complex (50%+): `[CLAUDEMAX AUTOPILOT] EXECUTE: ... SPAWN: ...` — run pipeline NOW, spawn agents in parallel
 - **pii-redactor** — PreToolUse on Write/Edit/Bash: blocks secrets, API keys, credentials
-- **code-quality-gate** — PreToolUse on Write/Edit: blocks hardcoded secrets (HIGH), warns on console.log/any/empty-catch (WARN)
-- rational-router, memory-enrich, memory-learn — **disabled** (added ~495 tokens/prompt of low-signal noise)
-- Dashboard auto-starts on port 4000 at SessionStart
+- **code-quality-gate** — PreToolUse on Write/Edit: blocks hardcoded secrets (HIGH), warns on debug/any/empty-catch (WARN)
+- **Ruflo daemon** — SessionStart: auto-starts swarm engine (60+ specialized agents, vector memory)
 
 ## Agent Teams & Swarm
 
