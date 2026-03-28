@@ -119,6 +119,7 @@ install_settings() {
   export _CM_PII_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/pii-redactor.mjs"
   export _CM_QG_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
   export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router.mjs"
+  export _CM_SS_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/session-start.mjs"
   export _CM_RUFLO_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
   export _CM_SETTINGS="$SETTINGS"
 
@@ -137,6 +138,7 @@ import json, os
 pii   = os.environ["_CM_PII_CMD"]
 qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
+ss_h  = os.environ["_CM_SS_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
 settings = {
   "fastMode": True,
@@ -151,6 +153,7 @@ settings = {
       {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]}
     ],
     "SessionStart": [
+      {"hooks": [{"type": "command", "command": ss_h,  "timeout": 3000}]},
       {"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]}
     ]
   }
@@ -168,6 +171,7 @@ import json, os
 pii   = os.environ["_CM_PII_CMD"]
 qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
+ss_h  = os.environ["_CM_SS_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
 path  = os.environ["_CM_SETTINGS"]
 
@@ -197,8 +201,10 @@ usp = hooks.setdefault("UserPromptSubmit", [])
 if not has_hook(usp, "rational-router"):
     usp.insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
 
-# SessionStart — Ruflo daemon auto-start
+# SessionStart — welcome panel + Ruflo daemon
 ss = hooks.setdefault("SessionStart", [])
+if not has_hook(ss, "session-start"):
+    ss.insert(0, {"hooks": [{"type": "command", "command": ss_h, "timeout": 3000}]})
 if not has_hook(ss, "ruflo") and not has_hook(ss, "daemon"):
     ss.append({"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]})
 

@@ -122,7 +122,7 @@ async function main() {
     if (highScan.found.length > 0) {
       writeLog(toolName, highScan.found, scanText.length);
       const types = highScan.found.map(f => f.type).join(', ');
-      process.stderr.write(`[PII Shield] BLOCKED — detected: ${types}\n`);
+      process.stderr.write(`\x1b[31m🚫 Safety guard stopped this\x1b[0m — found a secret (${types}) in your code.\n   Secrets don't belong in code. Remove it and try again.\n`);
       process.stdout.write(JSON.stringify({
         decision: 'block',
         reason:   `PII Shield: detected ${types} in ${toolName} input. Remove secrets before proceeding.`,

@@ -177,6 +177,7 @@ async function main() {
       const blocking = issues.filter(i => i.severity === 'HIGH');
       if (blocking.length > 0) {
         const reasons = blocking.map(i => i.description).join('; ');
+        process.stderr.write(`\x1b[31m🚫 Code quality check stopped this\x1b[0m — ${reasons}\n   Fix the issue above and try again.\n`);
         console.log(JSON.stringify({ decision: 'block', reason: `[Quality Gate] ${reasons}` }));
         process.exit(0);
       }
@@ -184,8 +185,8 @@ async function main() {
       // Warn for non-blocking issues
       const warnings = issues.filter(i => i.severity !== 'HIGH');
       if (warnings.length > 0) {
-        process.stderr.write(`\n[Quality Gate] ${warnings.length} issue(s) in ${basename(filePath)}:\n`);
-        warnings.forEach(w => process.stderr.write(`  ${w.severity}: ${w.description}\n`));
+        process.stderr.write(`\x1b[33m⚠ Heads up\x1b[0m — ${warnings.length} thing(s) to know about in ${basename(filePath)}:\n`);
+        warnings.forEach(w => process.stderr.write(`  · ${w.description}\n`));
       }
     }
 

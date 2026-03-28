@@ -132,14 +132,77 @@ async function main() {
     } catch { /* non-blocking */ }
   }
 
-  // Output — imperative instructions Claude follows automatically
+  // ── Human-readable visual panel → STDERR (user sees it, Claude doesn't) ──────
+  const C = '\x1b[36m', R = '\x1b[0m', Y = '\x1b[33m', G = '\x1b[32m';
+  const W = 55;
+  const pad = (s, w) => s + ' '.repeat(Math.max(0, w - [...s.replace(/\x1b\[[0-9;]*m/g, '')].length));
+
+  const AGENT_LABELS = {
+    planner: 'planning the approach',
+    coder: 'writing the code',
+    reviewer: 'checking for problems',
+    tester: 'making sure it works',
+    researcher: 'figuring out what\'s wrong',
+    'security-auditor': 'checking for security issues',
+    'performance-engineer': 'making it faster',
+    architect: 'designing the structure',
+  };
+  const AGENT_ICONS = {
+    planner: '🗺 ', coder: '💻', reviewer: '👀', tester: '🧪',
+    researcher: '🔍', 'security-auditor': '🛡 ', 'performance-engineer': '⚡', architect: '🏗 ',
+  };
+  const TIER_LABEL = { HAIKU: 'fast', SONNET: 'smart', OPUS: 'most capable' };
+  const TASK_LABELS = {
+    'new-feature': 'Building something new',    'bug-fix': 'Fixing a problem',
+    refactor: 'Cleaning up the code',           'code-review': 'Reviewing the code',
+    security: 'Security check',                 'deploy-ship': 'Deploying',
+    performance: 'Making it faster',            design: 'Designing the UI',
+    investigate: 'Investigating the issue',     planning: 'Planning the work',
+    documentation: 'Writing documentation',     swarm: 'Big parallel task',
+    autoplan: 'Full automated pipeline',        'web-browse': 'Opening a webpage',
+  };
+
+  const shortPrompt = promptText.length > 40 ? promptText.slice(0, 40) + '…' : promptText;
+  const taskLabel = TASK_LABELS[primary.id] || primary.id;
+
+  if (complexity >= 50 && primary.agents?.length) {
+    // Full autopilot panel
+    // row(content) = pad content to W-1 visible chars, wrap in border
+    const row = (content) => {
+      const visible = content.replace(/\x1b\[[0-9;]*m/g, '');
+      const spaces = Math.max(0, W - 1 - [...visible].length);
+      return `${C}│${R} ${content}${' '.repeat(spaces)}${C}│${R}`;
+    };
+    const lines = [
+      `${C}╭─ 🚀 Autopilot ON ${'─'.repeat(W - 17)}╮${R}`,
+      row(`"${shortPrompt}"`),
+      row(''),
+      row(`${Y}${taskLabel}${R}  ·  Model: ${TIER_LABEL[tier] || tier}`),
+      row(''),
+      row(`${C}Your specialist team (all working in parallel):${R}`),
+    ];
+    for (const agent of (primary.agents || [])) {
+      const icon = AGENT_ICONS[agent] || '· ';
+      const label = AGENT_LABELS[agent] || agent;
+      lines.push(row(`  ${icon} ${label}`));
+    }
+    lines.push(row(''));
+    lines.push(row(`${G}Sit back — running everything in parallel for you${R}`));
+    lines.push(`${C}╰${'─'.repeat(W)}╯${R}`);
+    process.stderr.write('\n' + lines.join('\n') + '\n\n');
+  } else {
+    // Single-line hint
+    process.stderr.write(`${C}┄ 🧭${R} ${taskLabel} · routing to ${primary.skill.split('→')[0].trim()}\n`);
+  }
+
+  // ── Machine directive → STDOUT (Claude reads this, acts on it) ────────────
   if (complexity >= 50 && primary.agents?.length) {
     const agentList = (primary.agents || []).join(', ');
-    console.log(`[CLAUDEMAX AUTOPILOT] task:${primary.id} model:${tier} complexity:${complexity}%`);
-    console.log(`EXECUTE: ${primary.skill} — run NOW, do not wait for user confirmation`);
-    console.log(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message`);
+    process.stdout.write(`[CLAUDEMAX AUTOPILOT] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
+    process.stdout.write(`EXECUTE: ${primary.skill} — run NOW, do not wait for user confirmation\n`);
+    process.stdout.write(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message\n`);
   } else {
-    console.log(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}`);
+    process.stdout.write(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}\n`);
   }
 
   process.exit(0);
