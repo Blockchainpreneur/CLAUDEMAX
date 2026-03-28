@@ -93,7 +93,7 @@ async function main() {
   // Normalize accented chars before question detection (é→e, í→i, etc.)
   const normalized = prompt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const ACTION_VERBS = /\b(fix|build|create|implement|refactor|deploy|review|audit|investigate|optimize|add|make|write|run|install|update|delete|remove)\b/;
-  const isQuestion = /^(is |are |was |were |has |have |does |do |did |can |could |would |should |what |why |how |when |where |who |describe |explain |tell me|give me)/i.test(normalized.trim()) &&
+  const isQuestion = /^(is |are |was |were |has |have |does |do |did |can |could |would |should |what |why |how |when |where |who |describe |explain |tell me|give me|right now |currently |at the moment)/i.test(normalized.trim()) &&
     !ACTION_VERBS.test(normalized);
   if (isQuestion) process.exit(0);
 
