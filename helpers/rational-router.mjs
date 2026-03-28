@@ -90,9 +90,11 @@ async function main() {
   const prompt = promptText.toLowerCase().trim();
   if (!prompt || prompt.length < 3) process.exit(0);
 
-  // Skip status/question prompts — avoid false positives on "is X done?", "are we good?"
-  const isQuestion = /^(is |are |was |were |has |have |does |do |did |can |could |would |should |what |why |how |when |where |who )/i.test(prompt.trim()) &&
-    !/\b(fix|build|create|implement|refactor|deploy|review|audit|investigate|optimize|add|make)\b/.test(prompt);
+  // Normalize accented chars before question detection (é→e, í→i, etc.)
+  const normalized = prompt.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const ACTION_VERBS = /\b(fix|build|create|implement|refactor|deploy|review|audit|investigate|optimize|add|make|write|run|install|update|delete|remove)\b/;
+  const isQuestion = /^(is |are |was |were |has |have |does |do |did |can |could |would |should |what |why |how |when |where |who |describe |explain |tell me|give me)/i.test(normalized.trim()) &&
+    !ACTION_VERBS.test(normalized);
   if (isQuestion) process.exit(0);
 
   const matches = RULES
