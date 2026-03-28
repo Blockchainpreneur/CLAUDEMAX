@@ -1,4 +1,4 @@
-# econ.vibe — The AI Development Operating System
+# CLAUDEMAX — The AI Development Operating System
 
 > A complete Claude Code + Ruflo global setup with a Notion-style kanban TUI that visualizes every agent in real time.
 
@@ -7,14 +7,14 @@
 ## One-command install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/econ.vibe/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Blockchainpreneur/CLAUDEMAX/main/install.sh | bash
 ```
 
 Or clone and run locally:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/econ.vibe ~/econ.vibe
-cd ~/econ.vibe && bash install.sh
+git clone https://github.com/Blockchainpreneur/CLAUDEMAX ~/claudemax
+cd ~/claudemax && bash install.sh
 ```
 
 ---
@@ -53,7 +53,7 @@ cd ~/econ.vibe && bash install.sh
 
 ```
 ┌──────────────┬──────────────────────────────────────────┬──────────────┐
-│  econ.vibe   │  🧠 Thinking  ✏️ Designing  ⚙️ Developing │ LIVE PREVIEW │
+│  CLAUDEMAX   │  🧠 Thinking  ✏️ Designing  ⚙️ Developing │ LIVE PREVIEW │
 │  ──────────  │  ───────────  ────────────  ─────────────│ ──────────── │
 │  PROJECTS    │  ┌─────────┐  ┌──────────┐  ┌──────────┐ │ localhost:3k │
 │  ▶ Econ Mkt  │  │ Agent 1 │  │ Agent 2  │  │ Agent 3  │ │ [Open]      │
@@ -134,4 +134,4 @@ After install, paste `setup/claude-preferences.json` into **Claude Desktop → S
 
 ## License
 
-MIT © econ.vibe contributors
+MIT © CLAUDEMAX contributors

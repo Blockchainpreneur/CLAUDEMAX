@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  econ.vibe — One-command installer
-#  Usage: curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/econ.vibe/main/install.sh | bash
+#  CLAUDEMAX — One-command installer
+#  Usage: curl -fsSL https://raw.githubusercontent.com/Blockchainpreneur/CLAUDEMAX/main/install.sh | bash
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-REPO_DIR="$HOME/econ.vibe"
+REPO_DIR="$HOME/claudemax"
 BOLD='\033[1m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -152,7 +152,7 @@ install_python_deps() {
 
 # ── Create desktop launcher ───────────────────────────────────────────────────
 create_launcher() {
-  LAUNCHER="$HOME/Desktop/econ.vibe.command"
+  LAUNCHER="$HOME/Desktop/CLAUDEMAX.command"
   cat > "$LAUNCHER" <<'LAUNCHER_SCRIPT'
 #!/bin/bash
 export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
@@ -160,12 +160,12 @@ export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
 npx ruflo@latest daemon status 2>/dev/null | grep -qi "running" || \
   (npx ruflo@latest daemon start 2>/dev/null &)
 sleep 1
-cd "$HOME/econ.vibe/tui"
+cd "$HOME/claudemax/tui"
 python3 app.py
 LAUNCHER_SCRIPT
 
   chmod +x "$LAUNCHER"
-  ok "Desktop launcher created: ~/Desktop/econ.vibe.command"
+  ok "Desktop launcher created: ~/Desktop/CLAUDEMAX.command"
 }
 
 # ── Start Ruflo daemon ────────────────────────────────────────────────────────
@@ -179,22 +179,22 @@ start_daemon() {
 print_success() {
   echo ""
   echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${RESET}"
-  echo -e "${GREEN}${BOLD}  ✅ econ.vibe setup complete!${RESET}"
+  echo -e "${GREEN}${BOLD}  ✅ CLAUDEMAX setup complete!${RESET}"
   echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${RESET}"
   echo ""
   echo "  What's installed:"
   echo "  • Claude Code (global)"
   echo "  • Ruflo orchestration"
   echo "  • MCP: context7, sequential-thinking, playwright"
-  echo "  • Kanban TUI (~/econ.vibe/tui/)"
+  echo "  • Kanban TUI (~/claudemax/tui/)"
   echo "  • Global Claude hooks (memory, PII redaction)"
   echo ""
   echo "  Next steps:"
   echo "  1. Add GitHub + Supabase tokens to MCP (see above)"
   echo -e "  2. ${BOLD}Paste setup/claude-preferences.json into Claude Desktop → Settings → Personal Preferences${RESET}"
-  echo "  3. Double-click econ.vibe on your Desktop to launch"
+  echo "  3. Double-click CLAUDEMAX on your Desktop to launch"
   echo ""
-  echo -e "${CYAN}  Setup complete. Double-click econ.vibe on your Desktop to launch.${RESET}"
+  echo -e "${CYAN}  Setup complete. Double-click CLAUDEMAX on your Desktop to launch.${RESET}"
   echo ""
 }
 

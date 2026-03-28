@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# econ.vibe ─ The AI Development Operating System
+# CLAUDEMAX ─ The AI Development Operating System
 # Pure Bash TUI  │  256-color  │  Tmux workspaces
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Guard ─────────────────────────────────────────────────────────────────────
-[[ -t 0 && -t 1 ]] || { echo "econ.vibe requires a real terminal." >&2; exit 1; }
+[[ -t 0 && -t 1 ]] || { echo "CLAUDEMAX requires a real terminal." >&2; exit 1; }
 
 # NO set -e  ← intentional: TUI scripts must never die on non-zero subcommands
 
@@ -230,7 +230,7 @@ draw_menu() {
   else
     # Small terminal: inline compact header
     at "$BR" "$BC"
-    printf "${M}│${Z} ${P}${B}econ.vibe${Z}${D}${A} — AI Development OS${Z}"
+    printf "${M}│${Z} ${P}${B}CLAUDEMAX${Z}${D}${A} — AI Development OS${Z}"
   fi
 
   # ── Box top ──
@@ -311,7 +311,7 @@ _wz_header() {
   at 2 1
   local pad=$(( (TW - 52) / 2 ))
   (( pad < 0 )) && pad=0
-  printf "%${pad}s${P}${B}econ.vibe${Z}${D}${A}  New Project${Z}  ${M}Step ${step}/4${Z}\n"
+  printf "%${pad}s${P}${B}CLAUDEMAX${Z}${D}${A}  New Project${Z}  ${M}Step ${step}/4${Z}\n"
   printf "\n%${pad}s${W}${B}${title}${Z}\n\n"
 }
 
@@ -480,7 +480,7 @@ MDEOF
 
   printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} Project created at ${L}${proj_path}${Z}\n"
   printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} CLAUDE.md generated\n"
-  printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} Added to econ.vibe\n\n"
+  printf "$(printf '%*s' $(((TW-30)/2)) '')${G}✓${Z} Added to CLAUDEMAX\n\n"
   printf "$(printf '%*s' $(((TW-34)/2)) '')${D}${A}Press any key to return to menu...${Z}"
 
   getkey > /dev/null
@@ -497,7 +497,7 @@ run_memory() {
   local pad=$(( (TW - 60) / 2 ))
   (( pad < 0 )) && pad=0
 
-  printf "%${pad}s${P}${B}econ.vibe${Z}  ${W}Ruflo Memory${Z}\n\n"
+  printf "%${pad}s${P}${B}CLAUDEMAX${Z}  ${W}Ruflo Memory${Z}\n\n"
 
   local proj_name=''
   [[ $SEL -lt $PC_COUNT ]] && proj_name="${PN[$SEL]}"
@@ -514,7 +514,7 @@ run_memory() {
     || printf "${R}Ruflo memory unavailable${Z}")
 
   printf '\033[2J'; at 2 1
-  printf "%${pad}s${P}${B}econ.vibe${Z}  ${W}Ruflo Memory${Z}\n\n"
+  printf "%${pad}s${P}${B}CLAUDEMAX${Z}  ${W}Ruflo Memory${Z}\n\n"
   [[ -n "$proj_name" ]] && printf "%${pad}s${D}${A}Project: ${L}${proj_name}${Z}\n\n"
 
   local BW=$(( TW < 80 ? TW - 2 : 76 ))
@@ -561,7 +561,7 @@ launch_project() {
 
       # Style the status bar
       tmux set-option -t "$sess" status-style "bg=#1a1a2e,fg=#eaeaea"
-      tmux set-option -t "$sess" status-left "#[bold,fg=#5865f2] econ.vibe #[default,fg=#444444] │ #[fg=#aaaaaa]${name}  "
+      tmux set-option -t "$sess" status-left "#[bold,fg=#5865f2] CLAUDEMAX #[default,fg=#444444] │ #[fg=#aaaaaa]${name}  "
       tmux set-option -t "$sess" status-right "#[fg=#444444]%H:%M "
       tmux set-option -t "$sess" status-left-length 40
 

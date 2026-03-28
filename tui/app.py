@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-econ.vibe — Notion-style AI Development OS
+CLAUDEMAX — Notion-style AI Development OS
 Dark kanban board matching Notion's visual language.
 """
 import asyncio
@@ -244,7 +244,7 @@ class TopBar(Horizontal):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            Text.from_markup("[#3a3a3a]econ.vibe[/]  [#2a2a2a]/[/]  "),
+            Text.from_markup("[#3a3a3a]CLAUDEMAX[/]  [#2a2a2a]/[/]  "),
             id="topbar-breadcrumb",
         )
         yield Static(
@@ -524,7 +524,7 @@ class MainScreen(Screen):
 
 class EconVibeApp(App):
     CSS_PATH = "theme.tcss"
-    TITLE    = "econ.vibe"
+    TITLE    = "CLAUDEMAX"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
