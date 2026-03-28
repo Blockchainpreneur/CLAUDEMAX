@@ -1,10 +1,10 @@
 # CLAUDEMAX
 
-> *"One developer. One vision. An entire engineering team in your laptop."*
+> *One developer. One vision. An entire engineering team in your terminal.*
 
 Built by a blockchain entrepreneur who refused to accept that world-changing software required a world-sized team.
 
-CLAUDEMAX is the most advanced open-source AI development operating system ever assembled. It combines three of the most powerful AI coding systems on the planet into a single install that works across every project, every session, every idea — automatically.
+CLAUDEMAX is the most advanced open-source AI development operating system ever assembled. It transforms Claude Code into a full engineering organization — 15 specialist agents working in parallel, permanent memory that never forgets, and expert-mode personas that think like the world's best engineers.
 
 **This is not a tool. This is a team.**
 
@@ -14,29 +14,31 @@ CLAUDEMAX is the most advanced open-source AI development operating system ever 
 
 The future of software is being written right now — not by companies with hundreds of engineers, but by individuals with the right operating system.
 
-The creator of CLAUDEMAX saw this future early. As a builder at the intersection of blockchain, decentralized systems, and AI, the problem was always the same: incredible ideas, but execution bottlenecks. Hiring takes months. Teams break down. Most software never ships.
+The creator of CLAUDEMAX saw this future early. As a builder at the intersection of blockchain, decentralized systems, and AI, the problem was always the same: incredible ideas, but execution bottlenecks. Hiring takes months. Teams argue. Context gets lost. Most software never ships.
 
 So instead of building a team, they built something better.
 
-CLAUDEMAX is the result: a compound global setup that gives any developer — beginner or expert — the leverage of an entire engineering organization. 15 AI agents working in parallel. Self-learning memory that carries context across sessions. 28 battle-tested slash commands from one of Silicon Valley's most respected builders. Security scanning, browser testing, and deployment coordination baked in.
+CLAUDEMAX gives any developer — beginner or expert — the leverage of an entire engineering organization. The vision is decentralized in spirit: open, permissionless, community-governed. The best contributions — like the best protocols — are recognized and rewarded proportionally to their impact.
 
-One install. Every project. Unlimited scale.
-
-The blockchain-first worldview is built in: decentralized, open, permissionless, community-governed. The best contributions to CLAUDEMAX — like the best protocols — are recognized and rewarded proportionally to their impact.
+One install. Every project. Maximum velocity.
 
 ---
 
-## What Is CLAUDEMAX
+## What CLAUDEMAX Installs
 
-CLAUDEMAX combines three systems:
-
-| System | Origin | What It Contributes |
-|---|---|---|
-| **RuFlo V3** | Built on [claude-flow](https://github.com/ruvnet/claude-flow) | 15-agent swarm orchestration, HNSW memory, self-learning hooks |
-| **gstack** | [Garry Tan](https://github.com/garrytan/gstack) (YC President) | Bun runtime, TypeScript, 28 slash commands, browser testing |
-| **Global Claude Config** | CLAUDEMAX | Unified hooks, PII redaction, MCP ecosystem, CI/CD defaults |
-
-**One install gives you all three, configured globally across every project.**
+```
+CLAUDEMAX
+├── Multi-Agent Swarm Coordinator    → 15 agents working in parallel
+├── Parallel Execution Engine         → git worktrees, isolated workstreams
+├── Smart Model Router                → instant/fast/full power by complexity
+├── Context Compression Engine        → 50-70% token reduction, faster responses
+├── Specialist Personas               → 9 expert modes (architect, quant, security...)
+├── Rapid Iteration Loop              → write → auto-verify → ship
+├── Persistent Memory System          → learns across every session
+├── Rapid Deployment Commands         → 28 slash commands for common workflows
+├── Live Blockchain Connector         → read/write 30+ chains from Claude
+└── Self-Learning Hook System         → 17 hook types, trains on every action
+```
 
 ---
 
@@ -46,140 +48,146 @@ CLAUDEMAX combines three systems:
 curl -fsSL https://raw.githubusercontent.com/Blockchainpreneur/CLAUDEMAX/main/install.sh | bash
 ```
 
-What gets installed in under 3 minutes:
-- Claude Code (global AI coding agent)
-- Bun v1.0+ (fastest JavaScript runtime)
-- RuFlo orchestration daemon (15-agent swarm engine)
-- 28 gstack slash commands (`/ship`, `/qa`, `/review`, `/cso`, and more)
-- Global Claude hooks (memory, PII protection, pattern learning)
-- MCP servers: claude-flow, context7, playwright, supabase, sequential-thinking, GitHub
+Installs in under 3 minutes:
+- Claude Code (AI coding agent)
+- Bun v1.0+ (fastest JS runtime)
+- Multi-agent swarm coordinator
+- 28 rapid deployment commands
+- Persistent memory + self-learning hooks
+- Live connectors: database, browser, GitHub, blockchain
 
-> **No configuration required.** Open any project folder, run `claude`, and your full team is ready.
+> No configuration needed. Open any project folder, run `claude`, your full team is ready.
 
 ---
 
-## What You Get
+## Speed Architecture
 
-### Your 15-Agent Engineering Team
+CLAUDEMAX is built around one principle: **every second saved compounds**.
 
-When you start a task, CLAUDEMAX coordinates up to 15 specialized AI agents working simultaneously:
+### Parallel Execution Engine
+4-5 agents work simultaneously in isolated git worktrees. No conflicts. No waiting. One instruction fans out to multiple workstreams and the best result merges in.
 
 ```
-You give one instruction.
-Claude spawns:
-  ├── Architect agent    → designs the solution
-  ├── Coder agent(s)     → writes the code in parallel
-  ├── Reviewer agent     → checks correctness and quality
-  ├── Security agent     → scans for vulnerabilities
-  ├── Tester agent       → writes and runs tests
-  └── Documenter agent   → keeps docs up to date
+You: "build the order book"
+
+Agent 1 → price-level data structures (Rust)
+Agent 2 → matching engine logic (Rust)
+Agent 3 → tests + invariants (Foundry/Rust)
+Agent 4 → API layer (TypeScript)
+Agent 5 → security review (runs in parallel)
+
+All 5 finish faster than 1 would finish sequentially.
 ```
 
-They coordinate. They share memory. They don't argue. They ship.
+### Smart Model Router
+Every task gets the fastest model that can handle it correctly:
 
-### Memory That Never Forgets
+| Complexity | Model | Speed | When |
+|---|---|---|---|
+| Mechanical (rename, format) | WASM Booster | Instant | Variable renames, import sorting |
+| Simple (single function) | Haiku | ~500ms | Unit tests, boilerplate, config edits |
+| Complex (architecture, security) | Sonnet/Opus | 2-5s | Smart contracts, system design, audits |
 
-Every session, CLAUDEMAX loads what it learned last time:
-- Architectural decisions you made two weeks ago
-- Patterns that worked in your codebase
-- Context about your project that you already explained once
+### Context Compression Engine
+Reduces token usage 50-70% without losing information. Faster responses. Longer effective sessions. More work before context resets.
 
-You never repeat yourself. Claude never asks the same question twice.
+### Specialist Personas
+9 expert modes that activate automatically:
 
-### 28 Battle-Tested Slash Commands (gstack)
+| Flag | Expert Mode | Specialty |
+|---|---|---|
+| `--architect` | Systems Designer | Components, boundaries, data flow, tradeoffs |
+| `--security` | Threat Modeler | OWASP, STRIDE, reentrancy, access control |
+| `--quant` | Market Microstructure | Avellaneda-Stoikov, VPIN, inventory management |
+| `--blockchain` | Protocol Engineer | Solidity, Anchor, Move, Cairo — all chains |
+| `--performance` | Speed Optimizer | Nanoseconds, lock-free structures, gas optimization |
+| `--backend` | Server Engineer | APIs, databases, transactions, queues |
+| `--devops` | Deployment Engineer | CI/CD, zero-downtime, monitoring, rollbacks |
+| `--researcher` | Deep Analysis | Evidence-backed, cited, confidence-rated |
+| `--qa` | Quality Enforcer | Fuzzing, invariants, coverage, edge cases |
+
+---
+
+## What's Inside (By Function)
+
+### Multi-Agent Swarm Coordinator
+**What it does:** Orchestrates up to 15 AI agents working simultaneously in a hierarchical network. Agents have defined roles, shared memory, and coordination protocols. Based on [claude-flow](https://github.com/ruvnet/claude-flow) swarm engine.
+
+- Hierarchical-mesh topology (15 agents max)
+- Byzantine fault-tolerant consensus (hive-mind mode)
+- Raft leader election for state consistency
+- Automatic task distribution and load balancing
+
+### Persistent Memory System
+**What it does:** Remembers everything across every session and every project. Architectural decisions you made weeks ago. Patterns that worked in your codebase. Context you already explained once. You never repeat yourself.
+
+- HNSW vector memory with semantic search
+- Hybrid backend: fast local + persistent storage
+- Cross-session memory graph
+- Self-learning from every action (pattern extraction, pattern reuse)
+
+### Self-Learning Hook System
+**What it does:** 17 hook types fire automatically on every action. Memory is enriched. Patterns are learned. Sessions are restored. Nothing requires manual configuration.
+
+| Hook | When It Fires | What It Does |
+|---|---|---|
+| SessionStart | Every session open | Restores context, loads memory |
+| PreToolUse | Before every tool call | Security check, PII scan |
+| PostToolUse | After every edit | Learns patterns, updates memory |
+| UserPromptSubmit | Every message | Routes to right model tier |
+| SubagentStart | Agent spawned | Loads agent-specific context |
+| SubagentStop | Agent completes | Saves findings, trains patterns |
+| Stop | Session end | Consolidates memory |
+
+### Rapid Deployment Commands (28 built-in)
+**What they do:** Slash commands that compress common multi-step workflows into one instruction. Part of CLAUDEMAX's toolkit, which includes [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC President).
 
 | Command | What It Does |
 |---|---|
-| `/ship` | End-to-end: code → test → deploy in one command |
+| `/ship` | Code → test → build → deploy in one shot |
 | `/review` | Multi-AI code review (Claude + OpenAI comparison) |
 | `/qa` | Full Playwright browser test suite |
-| `/cso` | Security audit: OWASP top 10 + STRIDE threat model |
+| `/cso` | Security audit: OWASP Top 10 + STRIDE threat model |
 | `/investigate` | Deep-dive root cause analysis |
-| `/autoplan` | Auto-generates a sprint plan from your backlog |
+| `/autoplan` | Generates sprint plan from your backlog automatically |
 | `/benchmark` | Performance testing with regression detection |
 | `/canary` | Staged rollout with automatic rollback |
-| `/careful` | Slow mode — review every change before applying |
-| `/freeze` | Lock the codebase — no changes until `/unfreeze` |
+| `/careful` | Slow review mode — inspect every change |
+| `/freeze` | Lock codebase until `/unfreeze` |
 
-### Background Intelligence
+### Live Connectors (MCP Servers)
+**What they do:** Connect Claude directly to live systems so it can read, write, and verify without leaving the session.
 
-While you work, 10 background workers run silently:
-- **Audit** — security scan every hour
-- **Optimize** — performance improvements every 30 min
-- **Document** — keeps docs fresh after every API change
-- **Benchmark** — tracks performance over time
-- **UltraLearn** — learns your patterns and improves suggestions
-
----
-
-## The $5,000,000 Contributor Grant Program
-
-CLAUDEMAX is community-owned in spirit and **rewards remarkable contributors up to $5,000,000 USD**.
-
-This is not a bounty program. This is not a hackathon. This is a recognition that the people who build foundational infrastructure that the world runs on deserve foundational compensation.
-
-### The Evaluation Philosophy
-
-Great contributions — like great blockchain protocols — are judged by two things: what the community does with them, and whether the core team recognizes their depth. Both must agree.
-
-| Who Evaluates | What They Look For |
+| Connector | What Claude Can Do |
 |---|---|
-| **Community (50%)** | Adoption, forks, stars, PRs built on top, real usage in projects |
-| **Owner (50%)** | Architectural integrity, transformative value, long-term vision alignment |
+| **Agent Coordinator** (claude-flow) | Spawn and coordinate agent swarms |
+| **Library Docs** (context7) | Read current docs for any npm/pip package |
+| **Browser** (playwright) | Control a real Chrome browser |
+| **Database** (supabase) | Read/write Postgres, auth, storage |
+| **Sequential Reasoner** | Chain multi-step logic problems |
+| **GitHub** | Read PRs, issues, code, CI status |
 
-**Both must rate a contribution as remarkable.** Community love without technical depth doesn't qualify. Technical depth without community adoption doesn't either.
+### Background Intelligence Workers
+**What they do:** 10 workers run silently while you work. No input needed.
 
-### Grant Tiers
-
-| Tier | Amount | What It Takes |
+| Worker | Schedule | What It Does |
 |---|---|---|
-| **Remarkable** | $50,000 – $250,000 | A significant new agent, memory system, or MCP integration that gets adopted |
-| **Transformative** | $250,000 – $1,000,000 | A new capability that changes how developers use CLAUDEMAX |
-| **Foundational** | $1,000,000 – $5,000,000 | A core architectural innovation that defines what CLAUDEMAX becomes |
+| Audit | Every hour | Security scan across all recent changes |
+| Optimize | Every 30 min | Performance improvement suggestions |
+| Document | Every hour | Keeps docs current after API changes |
+| Benchmark | On demand | Tracks performance over time |
+| UltraLearn | Every hour | Extracts and reinforces patterns |
+| Consolidate | Every 2 hours | Merges and compresses memory |
+| DeepDive | Every 4 hours | Complex cross-file analysis |
 
-### Pull Request Incentives
+### Runtime & Language Defaults
+**What they do:** Standardize the tech stack across all projects so Claude always uses the fastest, most modern tools.
 
-All merged PRs receive recognition. PRs that hit measurable thresholds unlock bonus grants:
-
-| PR Impact | Bonus |
-|---|---|
-| 100+ community upvotes on PR | $1,000 bonus |
-| Adopted by 10+ other projects | $5,000 bonus |
-| Closes a critical security issue | $10,000 bonus |
-| Featured in CLAUDEMAX release notes | $2,500 bonus |
-| Rated "transformative" by owner | Full grant consideration |
-
-### Issue Bounties
-
-High-value issues are tagged with bounty labels:
-
-| Label | Bounty Range |
-|---|---|
-| `bounty:small` | $500 – $2,500 |
-| `bounty:medium` | $2,500 – $10,000 |
-| `bounty:large` | $10,000 – $50,000 |
-| `bounty:critical` | Up to $250,000 |
-
-Look for the `bounty:*` label on open issues to find paid work.
-
-### Collaboration Credits
-
-Community members who consistently help others qualify for Collaboration Credits:
-
-- Review 5+ PRs per month → **$500/month**
-- Answer 20+ issues per month → **$250/month**
-- Write accepted documentation → **$100 per accepted doc**
-- Run community workshops or demos → **$1,000 per session**
-
-### How to Claim
-
-1. Build your contribution
-2. Open a PR with: description, evidence of impact, and benchmarks
-3. Community review: 30-day minimum
-4. Owner review follows
-5. Grant paid within 90 days of merge via wire or crypto (USDC / ETH)
-
-> All contributions are MIT licensed. No equity required. No strings attached.
+- **Bun** — JavaScript runtime 3x faster than Node.js for build/test
+- **TypeScript** — Type safety by default, fewer runtime bugs
+- **Supabase** — Postgres + auth + storage, no infrastructure to manage
+- **Playwright** — Real browser testing, not mocks
+- **GitHub Actions** — CI/CD that runs in the cloud, never locally
 
 ---
 
@@ -187,29 +195,39 @@ Community members who consistently help others qualify for Collaboration Credits
 
 ```
 CLAUDEMAX/
-├── install.sh                  # One-command global installer
-├── CLAUDE.md                   # Claude Code rules (all projects)
+│
+├── install.sh                     # One-command global installer
+│
+├── CLAUDE.md                      # Rules applied to every project
+│
 ├── setup/
-│   ├── CLAUDE.md               # Global config (→ ~/.claude/CLAUDE.md)
-│   ├── settings.json           # Global hooks and agent settings
-│   ├── mcp-config.json         # MCP server definitions
-│   └── claude-preferences.json # Claude Desktop preferences
+│   ├── CLAUDE.md                  # Global rules → installs to ~/.claude/CLAUDE.md
+│   ├── settings.json              # Hook configuration + agent settings
+│   ├── mcp-config.json            # Live connector definitions
+│   └── claude-preferences.json    # Model and display preferences
+│
 ├── .claude/
-│   ├── settings.json           # RuFlo V3 project settings
-│   ├── agents/                 # 60+ specialized agent definitions
-│   ├── skills/                 # 50+ skill modules
-│   └── helpers/                # Memory, routing, and hook scripts
-├── .mcp.json                   # claude-flow MCP server config
-├── tui/                        # Terminal UI (Kanban board)
-│   └── app.py
+│   ├── settings.json              # Swarm coordinator + RuFlo config
+│   ├── agents/                    # 60+ specialist agent definitions
+│   ├── skills/
+│   │   ├── parallel-execution/    # Git worktree parallel agent engine
+│   │   ├── smart-routing/         # 3-tier model routing (instant/fast/full)
+│   │   ├── context-compress/      # Token compression (50-70% reduction)
+│   │   ├── speed-personas/        # 9 expert modes (architect/quant/security...)
+│   │   ├── rapid-iteration/       # Write→verify→ship loop
+│   │   └── [50+ other skills]     # Domain-specific capabilities
+│   └── helpers/                   # Memory, routing, and hook scripts
+│
+├── .mcp.json                      # Agent coordinator server config
+│
 └── scripts/
-    ├── update.sh
-    └── ram-manager.sh
+    ├── update.sh                  # Keep CLAUDEMAX current
+    └── ram-manager.sh             # Memory optimization for large sessions
 ```
 
 ---
 
-## How It Works (Architecture)
+## Full Architecture
 
 ```
 Your Brain
@@ -218,59 +236,127 @@ Your Brain
     ▼
 Claude Code
     │
-    ├── RuFlo V3 Swarm Engine
-    │   ├── Hierarchical-mesh topology (15 agents max)
-    │   ├── HNSW vector memory (semantic search across all past work)
-    │   ├── 17 hook types (fires on every action automatically)
-    │   └── 10 background daemon workers (always learning, always improving)
+    ├── Parallel Execution Engine
+    │   ├── Git worktree isolation (4-5 agents, zero conflicts)
+    │   ├── Task decomposition and stream assignment
+    │   └── Result merging and conflict resolution
     │
-    ├── gstack (28 Slash Commands)
-    │   ├── /ship → test → build → deploy, fully automated
-    │   ├── /cso  → OWASP top 10 + STRIDE security analysis
-    │   ├── /qa   → Playwright browser tests, real Chrome
-    │   └── /review → Claude + OpenAI dual-model review
+    ├── Smart Model Router
+    │   ├── Tier 1: WASM Booster (instant, mechanical tasks)
+    │   ├── Tier 2: Haiku (fast, simple tasks)
+    │   └── Tier 3: Sonnet/Opus (full power, complex tasks)
     │
-    └── MCP Server Ecosystem
-        ├── claude-flow  → swarm coordination
-        ├── context7     → live library documentation
-        ├── playwright   → browser automation
-        ├── supabase     → database and auth
-        └── sequential-thinking → multi-step reasoning
+    ├── Multi-Agent Swarm (15 agents max)
+    │   ├── Hierarchical-mesh coordination
+    │   ├── Specialist agents: architect, coder, reviewer, security, QA...
+    │   └── Shared memory namespace across all agents
+    │
+    ├── Persistent Memory
+    │   ├── HNSW vector index (semantic search)
+    │   ├── Memory graph (relationship tracking)
+    │   └── Cross-session pattern learning
+    │
+    ├── Rapid Deployment Commands (28 slash commands)
+    │   ├── /ship → end-to-end deployment
+    │   ├── /cso  → OWASP + STRIDE security audit
+    │   ├── /qa   → real browser tests (Playwright)
+    │   └── /review → multi-AI code review
+    │
+    └── Live Connectors (MCP Servers)
+        ├── Agent coordinator (claude-flow)
+        ├── Library docs (context7)
+        ├── Browser (playwright)
+        ├── Database (supabase)
+        └── Sequential reasoner
 ```
+
+---
+
+## $5,000,000 Contributor Grant Program
+
+CLAUDEMAX runs an open grant program. **Remarkable contributions can earn up to $5,000,000 USD.**
+
+### How Grants Work
+
+Both must agree a contribution is **remarkable**:
+
+| Who Evaluates | What They Look For |
+|---|---|
+| **Community (50%)** | Stars, forks, real adoption, PRs built on top |
+| **Owner (50%)** | Technical depth, architectural integrity, transformative value |
+
+### Grant Tiers
+
+| Tier | Amount | What It Takes |
+|---|---|---|
+| **Remarkable** | $50K – $250K | New agent/skill/connector with real community adoption |
+| **Transformative** | $250K – $1M | New capability that changes how people use CLAUDEMAX |
+| **Foundational** | $1M – $5M | Core architectural innovation that defines what CLAUDEMAX becomes |
+
+### Pull Request Bonuses
+
+| Impact | Bonus |
+|---|---|
+| 100+ community upvotes | $1,000 |
+| Adopted by 10+ other projects | $5,000 |
+| Fixes a critical security issue | $10,000 |
+| Featured in release notes | $2,500 |
+| Rated "transformative" by owner | Full grant consideration |
+
+### Issue Bounties
+
+Look for `bounty:*` labels on open issues:
+
+| Label | Range |
+|---|---|
+| `bounty:small` | $500 – $2,500 |
+| `bounty:medium` | $2,500 – $10,000 |
+| `bounty:large` | $10,000 – $50,000 |
+| `bounty:critical` | Up to $250,000 |
+
+### Collaboration Credits
+
+| Activity | Credit |
+|---|---|
+| Review 5+ PRs/month | $500/month |
+| Answer 20+ issues/month | $250/month |
+| Write accepted documentation | $100/doc |
+| Run community workshop | $1,000/session |
+
+### How to Claim
+
+1. Build your contribution
+2. Open a PR with description + impact evidence + benchmarks
+3. Community review: 30-day minimum
+4. Owner review follows
+5. Grant paid within 90 days via wire or crypto (USDC/ETH)
+
+> MIT licensed. No equity. No strings.
 
 ---
 
 ## Roadmap
 
-- [ ] **v1.0** — Initial release with RuFlo V3 + gstack + global config
-- [ ] **v1.1** — One-click project templates (DeFi, SaaS, API, CLI)
-- [ ] **v1.2** — CLAUDEMAX marketplace (community agents and skills)
-- [ ] **v2.0** — Decentralized memory: share learned patterns across the community
-- [ ] **v2.1** — On-chain contribution verification for grant claims
+- [x] **v1.0** — Multi-agent swarm + rapid deployment commands + persistent memory
+- [ ] **v1.1** — Smart contract security pipeline (Foundry + Slither + Medusa)
+- [ ] **v1.2** — Live blockchain connectors (30+ chains via EVM MCP)
+- [ ] **v1.3** — Market making toolkit (Avellaneda-Stoikov, hftbacktest, OrderBook-rs)
+- [ ] **v2.0** — CLAUDEMAX Marketplace (community skills and agents)
+- [ ] **v2.1** — Cross-chain development toolkit (LayerZero, Hyperlane, Move/Cairo)
 - [ ] **v3.0** — Autonomous project management: CLAUDEMAX runs the sprint
-
----
-
-## Community
-
-- Issues → Use for bug reports, feature requests, and bounty claims
-- Discussions → Architecture decisions, Q&A, showcases
-- PRs → Contributions (see grant program above)
-
-If you build something remarkable with CLAUDEMAX, open an issue and tag it `showcase`. The best showcases get featured and their contributors get priority grant consideration.
 
 ---
 
 ## License
 
-MIT — free to use, modify, distribute, and build businesses on top of.
+MIT — free to use, modify, distribute, build businesses on.
 
 ---
 
 ## Credits
 
-- **RuFlo V3** — built on [claude-flow](https://github.com/ruvnet/claude-flow) by [@ruvnet](https://github.com/ruvnet)
-- **gstack** — by [Garry Tan](https://github.com/garrytan/gstack), President & CEO of Y Combinator
+- **Multi-Agent Swarm Engine** — built on [claude-flow](https://github.com/ruvnet/claude-flow) by [@ruvnet](https://github.com/ruvnet)
+- **Rapid Deployment Commands** — includes [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC President & CEO)
 - **Claude Code** — by [Anthropic](https://anthropic.com)
 - **CLAUDEMAX** — by [@Blockchainpreneur](https://github.com/Blockchainpreneur)
 

@@ -38,9 +38,26 @@
 - **HNSW**: Enabled
 - **Neural**: Enabled
 
-## Global Stack (gstack)
+## Speed Execution Rules (Always Active)
 
-This environment integrates [gstack](https://github.com/garrytan/gstack) — Garry Tan's (YC) AI-powered software factory that ships 10,000–20,000 lines/day.
+These rules fire on every task. They are not optional.
+
+- **Parallel first**: All independent operations in ONE message — reads, writes, agents, bash commands
+- **Act before explaining**: Never narrate what you're about to do — just do it
+- **Route by complexity**: Mechanical tasks → Tier 1 (instant). Simple tasks → Tier 2 (Haiku). Complex → Tier 3 (Sonnet/Opus)
+- **Compress output**: No filler, no restatements, no obvious comments in code
+- **Worktree agents**: When 2+ independent streams exist → spawn parallel agents in isolated git worktrees
+- **Persona switching**: Auto-activate specialist persona based on task (`--architect`, `--security`, `--quant`, `--blockchain`, `--performance`)
+- **Rapid loop**: write → auto-verify (hooks) → fix → ship. Never manual test runs.
+- **Reference don't repeat**: Already-established context gets a reference, not a re-explanation
+
+## Rapid Deployment Commands
+
+These commands are part of CLAUDEMAX's built-in rapid deployment toolkit (includes [gstack](https://github.com/garrytan/gstack) by Garry Tan / YC):
+
+### Runtime & Language
+- **Bun v1.0+** — primary runtime for all projects (Node.js fallback on Windows only)
+- **TypeScript** — default language for all new code
 
 ### Runtime & Language
 - **Bun v1.0+** — primary runtime for all projects (Node.js fallback on Windows only)
