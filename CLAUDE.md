@@ -40,19 +40,12 @@
 
 ## Build & Test
 
-```bash
-# Build
-npm run build
+All builds and tests run via **GitHub CI/CD — never run builds or tests locally**.
 
-# Test
-npm test
-
-# Lint
-npm run lint
-```
-
-- ALWAYS run tests after making code changes
-- ALWAYS verify build succeeds before committing
+- NEVER run `npm run build`, `npm test`, or `npm run lint` in the terminal
+- Builds are validated automatically via GitHub Actions on push/PR
+- Monitor CI status on GitHub to verify correctness
+- Do not block commits on local build results — push and let CI validate
 
 ## Security Rules
 

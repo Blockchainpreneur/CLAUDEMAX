@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f .claude-flow/config.yaml ] || (export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH\" && ruflo init 2>/dev/null &)"
+            "command": "[ -f .claude-flow/config.yaml ] || (export PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH\" && ruflo init 2>/dev/null &)"
           },
           {
             "type": "command",

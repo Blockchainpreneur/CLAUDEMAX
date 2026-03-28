@@ -9,6 +9,13 @@
 - If a task is similar to something done before in this project, apply the same patterns unless explicitly asked for something different
 - Never re-explain context that was already established in a previous session — reference it instead
 
+## Build & Environment
+
+- NEVER run local builds — all builds and tests execute in GitHub CI/CD
+- NEVER run `npm run build`, `npm test`, or `npm run lint` locally
+- Default environment is cloud/remote — not local machine
+- Push to branch and let GitHub Actions validate correctness
+
 ## Global Behavioral Rules
 
 - Do what has been asked; nothing more, nothing less
