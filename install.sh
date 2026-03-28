@@ -2,199 +2,352 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  CLAUDEMAX — One-command installer
 #  Usage: curl -fsSL https://raw.githubusercontent.com/Blockchainpreneur/CLAUDEMAX/main/install.sh | bash
+#  Or:    bash ~/claudemax/install.sh
+#
+#  What this does (fully automatic, zero manual steps):
+#  1. Installs Node 20+ and Claude Code if missing
+#  2. Installs gstack (AI Software Factory skills)
+#  3. Copies hooks (pii-redactor, code-quality-gate) to ~/.claude/helpers/
+#  4. Merges CLAUDEMAX hooks into ~/.claude/settings.json (non-destructive)
+#  5. Installs global CLAUDE.md with gstack + design system rules
+#  6. Installs Ruflo (60+ agents, vector memory, self-learning swarms)
+#  7. Installs MCP servers (context7, playwright, shadcn, magicui)
+#  8. Adds shell alias: `cm` → cd ~/claudemax && claude
+#  9. Verifies all hooks pass a live smoke test
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 REPO_DIR="$HOME/claudemax"
-BOLD='\033[1m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-RESET='\033[0m'
+HELPERS_DIR="$HOME/.claude/helpers"
+CLAUDE_DIR="$HOME/.claude"
+BOLD='\033[1m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
+YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
+
+step()  { echo -e "\n${CYAN}${BOLD}▶ $1${RESET}"; }
+ok()    { echo -e "  ${GREEN}✓ $1${RESET}"; }
+warn()  { echo -e "  ${YELLOW}⚠ $1${RESET}"; }
+fail()  { echo -e "  ${RED}✗ $1${RESET}"; exit 1; }
+info()  { echo -e "  ${CYAN}→ $1${RESET}"; }
 
 print_header() {
-  echo ""
-  echo -e "${CYAN}${BOLD}"
-  echo "  ███████╗ ██████╗ ██████╗ ███╗  ██╗    ██╗   ██╗██╗██████╗ ███████╗"
-  echo "  ██╔════╝██╔════╝██╔═══██╗████╗ ██║    ██║   ██║██║██╔══██╗██╔════╝"
-  echo "  █████╗  ██║     ██║   ██║██╔██╗██║    ██║   ██║██║██████╔╝█████╗  "
-  echo "  ██╔══╝  ██║     ██║   ██║██║╚████║    ╚██╗ ██╔╝██║██╔══██╗██╔══╝  "
-  echo "  ███████╗╚██████╗╚██████╔╝██║ ╚███║     ╚████╔╝ ██║██████╔╝███████╗"
-  echo "  ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚══╝      ╚═══╝  ╚═╝╚═════╝ ╚══════╝"
+  echo -e "\n${CYAN}${BOLD}"
+  echo "  ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗███╗   ███╗ █████╗ ██╗  ██╗"
+  echo " ██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝████╗ ████║██╔══██╗╚██╗██╔╝"
+  echo " ██║     ██║     ███████║██║   ██║██║  ██║█████╗  ██╔████╔██║███████║ ╚███╔╝ "
+  echo " ██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝  ██║╚██╔╝██║██╔══██║ ██╔██╗ "
+  echo " ╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗██║ ╚═╝ ██║██║  ██║██╔╝ ██╗"
+  echo "  ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝"
   echo -e "${RESET}"
-  echo -e "  ${BOLD}The AI Development Operating System${RESET}"
-  echo ""
+  echo -e "  ${BOLD}The AI Development Operating System${RESET}  —  github.com/Blockchainpreneur/CLAUDEMAX\n"
 }
 
-step() { echo -e "\n${CYAN}▶ $1${RESET}"; }
-ok()   { echo -e "  ${GREEN}✓ $1${RESET}"; }
-warn() { echo -e "  ${YELLOW}⚠ $1${RESET}"; }
-fail() { echo -e "  ${RED}✗ $1${RESET}"; }
-
-# ── Detect OS ─────────────────────────────────────────────────────────────────
-detect_os() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    OS="macos"
-    ARCH=$(uname -m)
-  elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    OS="linux"
-    ARCH=$(uname -m)
-  else
-    fail "Unsupported OS: $OSTYPE"
-    exit 1
-  fi
-  ok "Detected: $OS ($ARCH)"
+# ── 1. OS + Node ──────────────────────────────────────────────────────────────
+check_os() {
+  [[ "$OSTYPE" == "darwin"* ]] && OS="macos" || \
+  [[ "$OSTYPE" == "linux-gnu"* ]] && OS="linux" || \
+  fail "Unsupported OS: $OSTYPE"
+  ok "OS: $OS ($(uname -m))"
 }
 
-# ── Install NVM + Node 20 ─────────────────────────────────────────────────────
 install_node() {
-  if command -v node &>/dev/null && node -e "process.exit(parseInt(process.version.slice(1)) >= 20 ? 0 : 1)" 2>/dev/null; then
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" 2>/dev/null || true
+  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:$HOME/.nvm/versions/node/v22.0.0/bin:/usr/local/bin:$PATH"
+
+  if command -v node &>/dev/null && node -e "process.exit(parseInt(process.version.slice(1))>=20?0:1)" 2>/dev/null; then
     ok "Node.js $(node --version) already installed"
     return
   fi
-
-  echo "  Installing Node.js 20+ via nvm..."
-  export NVM_DIR="$HOME/.nvm"
+  info "Installing Node.js 20 via nvm..."
   if [ ! -d "$NVM_DIR" ]; then
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source "$NVM_DIR/nvm.sh"
   fi
-  # shellcheck source=/dev/null
-  [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-  nvm install 20 --lts
-  nvm use 20
+  nvm install 20 --lts && nvm use 20
   ok "Node.js $(node --version) installed"
 }
 
-# ── Install Python 3.11+ ──────────────────────────────────────────────────────
-install_python() {
-  if python3 --version 2>&1 | grep -qE "3\.(1[1-9]|[2-9][0-9])"; then
-    ok "Python $(python3 --version) already installed"
-  else
-    warn "Python 3.11+ recommended. Using $(python3 --version 2>&1 || echo 'not found')"
-    warn "Install via: brew install python@3.11  or  https://python.org"
-  fi
-}
-
-# ── Install Claude Code ───────────────────────────────────────────────────────
+# ── 2. Claude Code ────────────────────────────────────────────────────────────
 install_claude_code() {
-  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:$PATH"
   if command -v claude &>/dev/null; then
-    ok "Claude Code already installed"
+    ok "Claude Code $(claude --version 2>/dev/null | head -1) already installed"
   else
-    echo "  Installing Claude Code..."
-    npm install -g @anthropic-ai/claude-code
+    info "Installing Claude Code..."
+    npm install -g @anthropic-ai/claude-code 2>/dev/null
     ok "Claude Code installed"
   fi
 }
 
-# ── Install Ruflo ─────────────────────────────────────────────────────────────
+# ── 3. gstack ─────────────────────────────────────────────────────────────────
+install_gstack() {
+  GSTACK_DIR="$HOME/.claude/skills/gstack"
+  if [ -d "$GSTACK_DIR/.git" ]; then
+    info "Updating gstack..."
+    cd "$GSTACK_DIR" && git fetch origin -q && git reset --hard origin/main -q && ./setup >/dev/null 2>&1
+    ok "gstack updated to $(cat "$GSTACK_DIR/VERSION" 2>/dev/null)"
+  elif [ -d "$GSTACK_DIR" ]; then
+    ok "gstack $(cat "$GSTACK_DIR/VERSION" 2>/dev/null) already installed"
+  else
+    info "Installing gstack..."
+    mkdir -p "$HOME/.claude/skills"
+    git clone --depth 1 https://github.com/garrytan/gstack.git "$GSTACK_DIR" -q
+    cd "$GSTACK_DIR" && ./setup >/dev/null 2>&1
+    ok "gstack $(cat "$GSTACK_DIR/VERSION" 2>/dev/null) installed"
+  fi
+}
+
+# ── 4. Helpers (hooks) ────────────────────────────────────────────────────────
+install_helpers() {
+  mkdir -p "$HELPERS_DIR/.cache"
+  local count=0
+  for f in "$REPO_DIR/helpers/"*.mjs; do
+    [ -f "$f" ] || continue
+    cp "$f" "$HELPERS_DIR/"
+    chmod +x "$HELPERS_DIR/$(basename "$f")"
+    count=$((count+1))
+  done
+  ok "$count helper hooks installed → $HELPERS_DIR/"
+}
+
+# ── 5. settings.json — smart merge (non-destructive) ──────────────────────────
+install_settings() {
+  mkdir -p "$CLAUDE_DIR"
+  local SETTINGS="$CLAUDE_DIR/settings.json"
+  local NODE_BIN="$HOME/.nvm/versions/node/v20.19.0/bin"
+
+  # Pass hook commands via env vars — avoids all quoting issues in heredocs
+  export _CM_PII_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/pii-redactor.mjs"
+  export _CM_QG_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
+  export _CM_SETTINGS="$SETTINGS"
+
+  # If file doesn't exist or is empty/corrupt → fresh install
+  local IS_FRESH=false
+  if [ ! -f "$SETTINGS" ] || [ ! -s "$SETTINGS" ]; then
+    IS_FRESH=true
+  elif ! python3 -c "import json; json.load(open('$SETTINGS'))" 2>/dev/null; then
+    IS_FRESH=true
+  fi
+
+  if $IS_FRESH; then
+    # stdout = pure JSON only (no status messages — captured by apply_settings)
+    python3 - <<'PYEOF'
+import json, os
+pii = os.environ["_CM_PII_CMD"]
+qg  = os.environ["_CM_QG_CMD"]
+settings = {
+  "fastMode": True,
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Write|Edit|MultiEdit|Bash",
+       "hooks": [{"type": "command", "command": pii, "timeout": 2000}]},
+      {"matcher": "Write|Edit|MultiEdit",
+       "hooks": [{"type": "command", "command": qg,  "timeout": 1500}]}
+    ]
+  }
+}
+print(json.dumps(settings, indent=2))
+PYEOF
+    return
+  fi
+
+  # Existing valid file — merge hooks without overwriting user config
+  # stdout = pure JSON only
+  python3 - <<'PYEOF'
+import json, os
+
+pii  = os.environ["_CM_PII_CMD"]
+qg   = os.environ["_CM_QG_CMD"]
+path = os.environ["_CM_SETTINGS"]
+
+with open(path) as f:
+    settings = json.load(f)
+
+hooks = settings.setdefault("hooks", {})
+
+def has_hook(hook_list, marker):
+    for block in hook_list:
+        for h in block.get("hooks", []):
+            if marker in h.get("command", ""):
+                return True
+    return False
+
+pre = hooks.setdefault("PreToolUse", [])
+if not has_hook(pre, "pii-redactor"):
+    pre.insert(0, {"matcher": "Write|Edit|MultiEdit|Bash",
+                   "hooks": [{"type": "command", "command": pii, "timeout": 2000}]})
+if not has_hook(pre, "code-quality-gate"):
+    pre.append({"matcher": "Write|Edit|MultiEdit",
+                "hooks": [{"type": "command", "command": qg, "timeout": 1500}]})
+
+# Remove noisy hooks (memory-learn, memory-enrich, rational-router)
+for event in ["PostToolUse", "UserPromptSubmit", "Stop"]:
+    if event in hooks:
+        hooks[event] = [
+            b for b in hooks[event]
+            if not any(
+                x in h.get("command", "")
+                for h in b.get("hooks", [])
+                for x in ["memory-learn", "memory-enrich", "rational-router"]
+            )
+        ]
+        if not hooks[event]:
+            del hooks[event]
+
+print(json.dumps(settings, indent=2))
+PYEOF
+}
+
+# Apply the generated settings
+apply_settings() {
+  local SETTINGS="$CLAUDE_DIR/settings.json"
+  local BAK="$SETTINGS.bak.$(date +%s)"
+  # Backup BEFORE any writes
+  [ -f "$SETTINGS" ] && cp "$SETTINGS" "$BAK"
+  # Capture output FIRST, then write — avoids truncating the file before Python reads it
+  local TMP
+  TMP=$(mktemp)
+  if install_settings > "$TMP" 2>/dev/null && python3 -c "import json; json.load(open('$TMP'))" 2>/dev/null; then
+    mv "$TMP" "$SETTINGS"
+    ok "settings.json valid"
+  else
+    rm -f "$TMP"
+    if [ -f "$BAK" ]; then
+      cp "$BAK" "$SETTINGS"
+      warn "settings.json merge failed — restored backup"
+    else
+      warn "settings.json merge failed — no backup available"
+    fi
+  fi
+}
+
+# ── 6. CLAUDE.md global ───────────────────────────────────────────────────────
+install_claude_md() {
+  local SRC="$REPO_DIR/setup/CLAUDE.global.md"
+  local DST="$CLAUDE_DIR/CLAUDE.md"
+
+  if [ ! -f "$SRC" ]; then
+    warn "setup/CLAUDE.global.md not found — skipping CLAUDE.md install"
+    return
+  fi
+
+  [ -f "$DST" ] && cp "$DST" "$DST.bak.$(date +%s)" 2>/dev/null || true
+  cp "$SRC" "$DST"
+  ok "CLAUDE.md installed globally"
+}
+
+# ── 7. Ruflo — Enterprise swarm orchestration ─────────────────────────────────
 install_ruflo() {
   export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
-  echo "  Initializing Ruflo in your home directory..."
-  mkdir -p "$HOME/.ruflo-global"
-  cd "$HOME/.ruflo-global"
+  # Ruflo = 60+ specialized agents, vector memory, self-learning, MCP integration
+  # Wraps @claude-flow/cli with enterprise orchestration layer
+  local RUFLO_HOME="$HOME/.ruflo-global"
+  mkdir -p "$RUFLO_HOME"
+
+  # Check if already initialized
+  if [ -f "$RUFLO_HOME/package.json" ] && command -v ruflo &>/dev/null 2>&1; then
+    local VER
+    VER=$(npx ruflo@latest --version 2>/dev/null | head -1 || echo "?")
+    ok "Ruflo $VER already installed"
+    return
+  fi
+
+  info "Installing Ruflo (enterprise swarm orchestration)..."
+  cd "$RUFLO_HOME"
   echo '{"name":"ruflo-global"}' > package.json
-  npx ruflo@latest init --yes 2>/dev/null || \
-    npx ruflo@latest init 2>/dev/null || \
-    warn "Ruflo init skipped — run 'npx ruflo@latest init' in each project"
-  ok "Ruflo ready"
+  npx ruflo@latest init --yes 2>/dev/null \
+    || npx ruflo@latest init 2>/dev/null \
+    || { warn "Ruflo init skipped — run: cd ~/.ruflo-global && npx ruflo@latest init"; return; }
+  ok "Ruflo installed (60+ agents, vector memory, self-learning)"
 }
 
-# ── Install MCP Servers ───────────────────────────────────────────────────────
-install_mcp_servers() {
-  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
-  echo "  Installing MCP servers (global user scope)..."
-
-  claude mcp add -s user context7 -- npx -y @upstash/context7-mcp 2>/dev/null && ok "context7" || warn "context7 skipped"
-  claude mcp add -s user sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking 2>/dev/null && ok "sequential-thinking" || warn "sequential-thinking skipped"
-  claude mcp add -s user playwright -- npx -y @playwright/mcp@latest 2>/dev/null && ok "playwright" || warn "playwright skipped"
-
+# ── 8. MCP servers ────────────────────────────────────────────────────────────
+install_mcp() {
+  info "Installing MCP servers..."
+  claude mcp add -s user context7   -- npx -y @upstash/context7-mcp            2>/dev/null && ok "context7"            || warn "context7 skipped"
+  claude mcp add -s user playwright -- npx -y @playwright/mcp@latest            2>/dev/null && ok "playwright"          || warn "playwright skipped"
+  claude mcp add -s user shadcn     -- npx -y shadcn@canary registry             2>/dev/null && ok "shadcn"             || warn "shadcn skipped"
+  claude mcp add -s user magicuidesign-mcp -- npx -y magicui-mcp                2>/dev/null && ok "magic-ui"           || warn "magic-ui skipped"
   echo ""
-  echo -e "  ${YELLOW}For GitHub and Supabase MCP, tokens are required:${RESET}"
-  echo "  • GitHub:   claude mcp add -s user github -e GITHUB_TOKEN=YOUR_TOKEN -- npx -y @modelcontextprotocol/server-github"
-  echo "  • Supabase: claude mcp add -s user supabase -e SUPABASE_ACCESS_TOKEN=YOUR_TOKEN -- npx -y @supabase/mcp-server-supabase@latest"
+  warn "GitHub/Supabase MCPs need tokens — add manually:"
+  info "claude mcp add -s user github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github"
+  info "claude mcp add -s user supabase -e SUPABASE_ACCESS_TOKEN=xxx -- npx -y @supabase/mcp-server-supabase@latest"
 }
 
-# ── Copy global Claude config ─────────────────────────────────────────────────
-copy_claude_config() {
-  mkdir -p "$HOME/.claude/helpers"
+# ── 8. Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────
+install_alias() {
+  local ALIAS_LINE='alias cm="cd ~/claudemax && claude"'
+  local ALIAS_COMMENT="# CLAUDEMAX — open Claude Code from ~/claudemax"
 
-  if [ -f "$REPO_DIR/setup/CLAUDE.md" ]; then
-    cp "$REPO_DIR/setup/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-    ok "CLAUDE.md installed globally"
-  fi
-
-  if [ -f "$REPO_DIR/setup/settings.json" ]; then
-    cp "$REPO_DIR/setup/settings.json" "$HOME/.claude/settings.json"
-    ok "settings.json installed globally"
-  fi
-
-  # Install helper scripts if present
-  for helper in "$REPO_DIR"/.claude/helpers/*.mjs "$REPO_DIR"/.claude/helpers/*.cjs; do
-    [ -f "$helper" ] && cp "$helper" "$HOME/.claude/helpers/" && ok "Copied $(basename $helper)"
+  for RC in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    [ -f "$RC" ] || continue
+    if grep -q "alias cm=" "$RC" 2>/dev/null; then
+      ok "Shell alias 'cm' already in $(basename $RC)"
+    else
+      printf "\n%s\n%s\n" "$ALIAS_COMMENT" "$ALIAS_LINE" >> "$RC"
+      ok "Added 'cm' alias to $(basename $RC)"
+    fi
   done
+  info "Run: source ~/.zshrc  (or open a new terminal)"
+  info "Then: cm  → opens Claude Code in ~/claudemax"
 }
 
-# ── Install Python TUI deps ───────────────────────────────────────────────────
-install_python_deps() {
-  echo "  Installing Textual and Rich..."
-  pip3 install --user textual rich --quiet 2>/dev/null || \
-    pip3 install textual rich --quiet 2>/dev/null || \
-    warn "pip install failed — try: pip3 install textual rich"
+# ── 9. Smoke test — verify all hooks pass ────────────────────────────────────
+verify_hooks() {
+  local passed=0 failed=0
 
-  if python3 -c "import textual, rich" 2>/dev/null; then
-    ok "textual + rich installed"
+  # Test pii-redactor — should approve clean input
+  result=$(echo '{"tool_name":"bash","tool_input":{"command":"echo hello"}}'  \
+    | node "$HELPERS_DIR/pii-redactor.mjs" 2>/dev/null)
+  if echo "$result" | python3 -c "import json,sys; d=json.load(sys.stdin); exit(0 if d.get('decision')=='approve' else 1)" 2>/dev/null; then
+    ok "pii-redactor ✓ approve"
+    passed=$((passed+1))
   else
-    warn "Could not verify Python deps — check manually"
+    warn "pii-redactor: unexpected result: $result"
+    failed=$((failed+1))
+  fi
+
+  # Test code-quality-gate — should approve clean TypeScript
+  result=$(echo '{"tool_name":"write","tool_input":{"file_path":"src/add.ts","content":"export function add(a: number, b: number): number { return a + b; }"},"tool_result":"ok"}' \
+    | node "$HELPERS_DIR/code-quality-gate.mjs" 2>/dev/null)
+  if echo "$result" | python3 -c "import json,sys; d=json.load(sys.stdin); exit(0 if d.get('decision')=='approve' else 1)" 2>/dev/null; then
+    ok "code-quality-gate ✓ approve clean code"
+    passed=$((passed+1))
+  else
+    warn "code-quality-gate: unexpected result: $result"
+    failed=$((failed+1))
+  fi
+
+  # Verify settings.json is valid JSON
+  if python3 -c "import json; json.load(open('$CLAUDE_DIR/settings.json'))" 2>/dev/null; then
+    ok "settings.json ✓ valid JSON"
+    passed=$((passed+1))
+  else
+    warn "settings.json: invalid JSON"
+    failed=$((failed+1))
+  fi
+
+  if [ $failed -eq 0 ]; then
+    ok "All $passed smoke tests passed"
+  else
+    warn "$passed passed, $failed failed — check ~/.claude/helpers/"
   fi
 }
 
-# ── Create desktop launcher ───────────────────────────────────────────────────
-create_launcher() {
-  LAUNCHER="$HOME/Desktop/CLAUDEMAX.command"
-  cat > "$LAUNCHER" <<'LAUNCHER_SCRIPT'
-#!/bin/bash
-export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
-# Start Ruflo daemon if not running
-npx ruflo@latest daemon status 2>/dev/null | grep -qi "running" || \
-  (npx ruflo@latest daemon start 2>/dev/null &)
-sleep 1
-cd "$HOME/claudemax/tui"
-python3 app.py
-LAUNCHER_SCRIPT
-
-  chmod +x "$LAUNCHER"
-  ok "Desktop launcher created: ~/Desktop/CLAUDEMAX.command"
-}
-
-# ── Start Ruflo daemon ────────────────────────────────────────────────────────
-start_daemon() {
-  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
-  npx ruflo@latest daemon start 2>/dev/null || true
-  ok "Ruflo daemon started"
-}
-
-# ── Print success summary ─────────────────────────────────────────────────────
+# ── Summary ───────────────────────────────────────────────────────────────────
 print_success() {
   echo ""
   echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${RESET}"
-  echo -e "${GREEN}${BOLD}  ✅ CLAUDEMAX setup complete!${RESET}"
+  echo -e "${GREEN}${BOLD}  ✅ CLAUDEMAX installed successfully!${RESET}"
   echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════${RESET}"
   echo ""
-  echo "  What's installed:"
-  echo "  • Claude Code (global)"
-  echo "  • Ruflo orchestration"
-  echo "  • MCP: context7, sequential-thinking, playwright"
-  echo "  • Kanban TUI (~/claudemax/tui/)"
-  echo "  • Global Claude hooks (memory, PII redaction)"
+  echo "  Installed:"
+  echo "  • Claude Code + gstack (AI Software Factory)"
+  echo "  • Hooks: pii-redactor + code-quality-gate"
+  echo "  • MCP: context7, playwright, shadcn, magic-ui"
+  echo "  • Global CLAUDE.md with gstack decision tree"
+  echo "  • Shell alias: cm → opens Claude Code in ~/claudemax"
   echo ""
-  echo "  Next steps:"
-  echo "  1. Add GitHub + Supabase tokens to MCP (see above)"
-  echo -e "  2. ${BOLD}Paste setup/claude-preferences.json into Claude Desktop → Settings → Personal Preferences${RESET}"
-  echo "  3. Double-click CLAUDEMAX on your Desktop to launch"
-  echo ""
-  echo -e "${CYAN}  Setup complete. Double-click CLAUDEMAX on your Desktop to launch.${RESET}"
+  echo -e "  ${BOLD}Start:${RESET}  source ~/.zshrc && cm"
   echo ""
 }
 
@@ -202,34 +355,38 @@ print_success() {
 main() {
   print_header
 
-  step "1/9  Detecting OS"
-  detect_os
+  step "1/10 Checking OS"
+  check_os
 
-  step "2/9  Checking Node.js 20+"
+  step "2/10 Node.js 20+"
   install_node
 
-  step "3/9  Checking Python 3.11+"
-  install_python
-
-  step "4/9  Installing Claude Code"
+  step "3/10 Claude Code"
   install_claude_code
 
-  step "5/9  Setting up Ruflo"
+  step "4/10 gstack (AI Software Factory)"
+  install_gstack
+
+  step "5/10 CLAUDEMAX hook helpers"
+  install_helpers
+
+  step "6/10 settings.json (smart merge)"
+  apply_settings
+
+  step "7/10 Global CLAUDE.md"
+  install_claude_md
+
+  step "8/10 Ruflo (enterprise swarm orchestration)"
   install_ruflo
 
-  step "6/9  Installing MCP servers"
-  install_mcp_servers
+  step "9/10 MCP servers"
+  install_mcp
 
-  step "7/9  Copying global Claude config"
-  copy_claude_config
+  step "10/10 Shell alias (cm)"
+  install_alias
 
-  step "8/9  Installing Python TUI dependencies"
-  install_python_deps
-
-  step "9/9  Creating desktop launcher"
-  create_launcher
-
-  start_daemon
+  step "✓    Smoke tests"
+  verify_hooks
 
   print_success
 }
