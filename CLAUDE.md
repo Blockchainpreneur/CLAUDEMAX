@@ -38,6 +38,36 @@
 - **HNSW**: Enabled
 - **Neural**: Enabled
 
+## Global Stack (gstack)
+
+This environment integrates [gstack](https://github.com/garrytan/gstack) — Garry Tan's (YC) AI-powered software factory that ships 10,000–20,000 lines/day.
+
+### Runtime & Language
+- **Bun v1.0+** — primary runtime for all projects (Node.js fallback on Windows only)
+- **TypeScript** — default language for all new code
+
+### Infrastructure Defaults
+- **Supabase** — database, auth, and storage backend
+- **Playwright** — browser automation and end-to-end testing
+- **GitHub Actions** — CI/CD pipeline
+
+### gstack Slash Commands (28 built-in skills)
+
+| Category | Commands |
+|---|---|
+| Planning | `/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/autoplan` |
+| Development | `/ship`, `/review`, `/investigate`, `/land-and-deploy` |
+| QA & Testing | `/qa`, `/qa-only`, `/benchmark`, `/canary` |
+| Security | `/cso` (OWASP + STRIDE audits) |
+| Browser | `/browse`, `/connect-chrome`, `/setup-browser-cookies` |
+| Safety | `/careful`, `/freeze`, `/guard`, `/unfreeze` |
+| Utilities | `/codex`, `/retro`, `/setup-deploy`, `/gstack-upgrade` |
+
+- Always use **Bun** instead of npm/node for new projects
+- Use `/cso` for security review before any deployment
+- Use `/qa` after feature completion — never run tests locally
+- Use `/ship` for end-to-end deploy coordination
+
 ## Build & Test
 
 All builds and tests run via **GitHub CI/CD — never run builds or tests locally**.

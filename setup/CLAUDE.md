@@ -1,4 +1,4 @@
-# Global Claude Code Configuration
+# CLAUDEMAX — Global Claude Code Configuration
 
 ## MEMORY INTEGRATION RULES (Active Every Session)
 
@@ -8,6 +8,20 @@
 - When spawning subagents or using Agent Teams, use Ruflo as the coordination layer
 - If a task is similar to something done before in this project, apply the same patterns unless explicitly asked for something different
 - Never re-explain context that was already established in a previous session — reference it instead
+
+## Global Stack (gstack)
+
+Integrates [gstack](https://github.com/garrytan/gstack) (Garry Tan / YC) across all projects:
+
+- **Runtime**: Bun v1.0+ (Node.js fallback Windows only)
+- **Language**: TypeScript by default
+- **Backend**: Supabase (DB, auth, storage)
+- **Testing**: Playwright (browser + E2E)
+- **CI/CD**: GitHub Actions
+- **28 slash commands**: `/ship`, `/review`, `/qa`, `/cso`, `/investigate`, `/autoplan`, `/benchmark`, `/canary`, and more
+- Always use Bun, never npm/node for new projects
+- Use `/cso` before any deployment (OWASP + STRIDE security scan)
+- Use `/qa` after features — never run tests locally
 
 ## Build & Environment
 
