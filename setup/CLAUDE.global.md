@@ -1,5 +1,27 @@
 # Global Claude Code Configuration
 
+## Visual Protocol — NON-NEGOTIABLE, always on
+
+When your context contains `[CLAUDEMAX DISPLAY]...[/CLAUDEMAX DISPLAY]`:
+output that block **verbatim** as the **very first thing** in your response.
+No preamble. No modification. Just the block exactly as-is.
+
+After every response where you used one or more tools, append this diagram
+using real information from what you actually did:
+
+```
+┌─[ DONE ]────────────────────────────────────────────────┐
+│  task     <task label from CLAUDEMAX context>           │
+│  files    <files you edited/wrote, or none>             │
+│  actions  <e.g. edited code · ran commands · read files>│
+│  result   ✓ complete                                    │
+└────────────────────────────────────────────────────────┘
+```
+
+If your context contains `[CLAUDEMAX DONE]...[/CLAUDEMAX DONE]`:
+output that block verbatim **at the end** of your response instead of
+generating a new one.
+
 ## Global Approach
 
 - When spawning subagents or using Agent Teams, use CLAUDEMAX as the coordination layer

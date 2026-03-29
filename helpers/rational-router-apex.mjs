@@ -498,7 +498,13 @@ async function main() {
     out.push(boxBot());
 
     out.push('');
+
+    // Colored version → stderr (terminal always-visible)
     process.stderr.write(out.join('\n') + '\n');
+
+    // Clean ASCII version → stdout so Claude outputs it in its response (app/web visible)
+    const clean = out.map(l => l.replace(/\x1b\[[0-9;]*m/g, '')).join('\n');
+    process.stdout.write(`[CLAUDEMAX DISPLAY]\n${clean}\n[/CLAUDEMAX DISPLAY]\n`);
 
   } else {
     // ── Compact routing diagram (medium tier) ───────────────────────────────
@@ -508,7 +514,11 @@ async function main() {
     out.push(...renderPipeline(primary.skill));
     out.push(boxBot());
     out.push('');
+
     process.stderr.write(out.join('\n') + '\n');
+
+    const clean = out.map(l => l.replace(/\x1b\[[0-9;]*m/g, '')).join('\n');
+    process.stdout.write(`[CLAUDEMAX DISPLAY]\n${clean}\n[/CLAUDEMAX DISPLAY]\n`);
   }
 
   // ── Machine directive → STDOUT (Claude reads and executes) ────────────────
