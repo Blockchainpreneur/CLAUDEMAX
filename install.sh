@@ -208,15 +208,19 @@ if not has_hook(pre, "code-quality-gate"):
     pre.append({"matcher": "Write|Edit|MultiEdit",
                 "hooks": [{"type": "command", "command": qg, "timeout": 1500}]})
 
-# UserPromptSubmit — apex autopilot router
+# UserPromptSubmit — upgrade old router to apex (replace, don't skip)
 usp = hooks.setdefault("UserPromptSubmit", [])
-if not has_hook(usp, "rational-router"):
-    usp.insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
+if not has_hook(usp, "rational-router-apex"):
+    hooks["UserPromptSubmit"] = [b for b in usp if not any(
+        "rational-router" in h.get("command", "") for h in b.get("hooks", []))]
+    hooks["UserPromptSubmit"].insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
 
-# PostToolUse — event accumulator for completion diagram
+# PostToolUse — replace old post-tool-use with apex (no double-hook)
 ptu_hooks = hooks.setdefault("PostToolUse", [])
 if not has_hook(ptu_hooks, "post-tool-use-apex"):
-    ptu_hooks.insert(0, {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]})
+    hooks["PostToolUse"] = [b for b in ptu_hooks if not any(
+        "post-tool-use" in h.get("command", "") for h in b.get("hooks", []))]
+    hooks["PostToolUse"].insert(0, {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]})
 
 # Stop — completion diagram + session summary
 stop = hooks.setdefault("Stop", [])
