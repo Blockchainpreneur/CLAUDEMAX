@@ -15,7 +15,7 @@
  */
 
 import { spawn } from 'child_process';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 
@@ -52,7 +52,7 @@ const RULES = [
       /\b(brain.?dump|i've been thinking|let me think out loud|rambling|messy thoughts|wall of text|too many thoughts|a lot on my mind|stream of consciousness)\b/,
       /^(ok so,?|so i|here'?s what i'?m thinking|i have a lot|i don'?t know where to start)/,
     ],
-    skill: 'extract-decisions → prioritize → structure → execute',
+    skill: 'extract-decisions → prioritize → structure → SAVE key decisions + action items to ~/.claudemax/decisions.md',
     label: 'Processing your thoughts',
   },
 
@@ -360,13 +360,32 @@ async function main() {
 
   if (matches.length === 0) process.exit(0);
 
-  const primary    = matches[0];
-  const complexity = matches.reduce((max, m) => Math.max(max, COMPLEXITY[m.id] || 50), 0);
+  const primary         = matches[0];
+  let   complexity      = matches.reduce((max, m) => Math.max(max, COMPLEXITY[m.id] || 50), 0);
+
+  // Gap 3: context-aware complexity boost ─────────────────────────────────
+  try {
+    const slug    = process.cwd().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').toLowerCase().slice(-50);
+    const ctxFile = join(homedir(), '.claudemax', 'contexts', `${slug}.md`);
+    if (existsSync(ctxFile)) {
+      const ctx = readFileSync(ctxFile, 'utf8').toLowerCase();
+      if (ctx.includes(primary.id))  complexity = Math.min(85, complexity + 15); // seen before
+      if (ctx.length > 2000)         complexity = Math.min(85, complexity + 5);  // big project
+    }
+  } catch {}
 
   if (complexity < 15) process.exit(0);
 
-  const tier             = complexity < 30 ? 'HAIKU' : complexity < 65 ? 'SONNET' : 'OPUS';
-  const isEntrepreneur   = ENTREPRENEUR_TASKS.has(primary.id);
+  const tier           = complexity < 30 ? 'HAIKU' : complexity < 65 ? 'SONNET' : 'OPUS';
+  const isEntrepreneur = ENTREPRENEUR_TASKS.has(primary.id);
+
+  // Gap 1: write current-task.json for completion diagram ──────────────────
+  try {
+    const taskDir = join(homedir(), '.claudemax');
+    if (!existsSync(taskDir)) mkdirSync(taskDir, { recursive: true });
+    writeFileSync(join(taskDir, 'current-task.json'),
+      JSON.stringify({ id: primary.id, label: primary.label, ts: new Date().toISOString() }));
+  } catch {}
 
   // Spin up Ruflo swarm for complex tasks
   if (complexity >= 50 && primary.agents?.length) {
@@ -498,6 +517,7 @@ async function main() {
     process.stdout.write(`[CLAUDEMAX APEX] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
     process.stdout.write(`EXECUTE: ${primary.skill} — run NOW, do not wait for user confirmation\n`);
     process.stdout.write(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message\n`);
+    process.stdout.write(`VERIFY: confirm Task tool was called for each agent before proceeding\n`);
   } else {
     process.stdout.write(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}\n`);
   }

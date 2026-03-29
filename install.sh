@@ -121,6 +121,8 @@ install_settings() {
   export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router-apex.mjs"
   export _CM_SS_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/session-start.mjs"
   export _CM_RUFLO_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
+  export _CM_PTU_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/post-tool-use-apex.mjs 2>/dev/null || true"
+  export _CM_TC_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/task-complete.mjs 2>/dev/null || true"
   export _CM_SETTINGS="$SETTINGS"
 
   # If file doesn't exist or is empty/corrupt → fresh install
@@ -140,6 +142,8 @@ qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
 ss_h  = os.environ["_CM_SS_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
+ptu   = os.environ["_CM_PTU_CMD"]
+tc    = os.environ["_CM_TC_CMD"]
 settings = {
   "fastMode": True,
   "hooks": {
@@ -151,6 +155,12 @@ settings = {
     ],
     "UserPromptSubmit": [
       {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]}
+    ],
+    "PostToolUse": [
+      {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]}
+    ],
+    "Stop": [
+      {"hooks": [{"type": "command", "command": tc,  "timeout": 2000}]}
     ],
     "SessionStart": [
       {"hooks": [{"type": "command", "command": ss_h,  "timeout": 3000}]},
@@ -173,6 +183,8 @@ qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
 ss_h  = os.environ["_CM_SS_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
+ptu   = os.environ["_CM_PTU_CMD"]
+tc    = os.environ["_CM_TC_CMD"]
 path  = os.environ["_CM_SETTINGS"]
 
 with open(path) as f:
@@ -196,10 +208,20 @@ if not has_hook(pre, "code-quality-gate"):
     pre.append({"matcher": "Write|Edit|MultiEdit",
                 "hooks": [{"type": "command", "command": qg, "timeout": 1500}]})
 
-# UserPromptSubmit — rational-router autopilot
+# UserPromptSubmit — apex autopilot router
 usp = hooks.setdefault("UserPromptSubmit", [])
 if not has_hook(usp, "rational-router"):
     usp.insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
+
+# PostToolUse — event accumulator for completion diagram
+ptu_hooks = hooks.setdefault("PostToolUse", [])
+if not has_hook(ptu_hooks, "post-tool-use-apex"):
+    ptu_hooks.insert(0, {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]})
+
+# Stop — completion diagram + session summary
+stop = hooks.setdefault("Stop", [])
+if not has_hook(stop, "task-complete"):
+    stop.insert(0, {"hooks": [{"type": "command", "command": tc, "timeout": 2000}]})
 
 # SessionStart — welcome panel + Ruflo daemon
 ss = hooks.setdefault("SessionStart", [])
