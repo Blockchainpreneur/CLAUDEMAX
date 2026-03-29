@@ -118,7 +118,7 @@ install_settings() {
   # Pass hook commands via env vars — avoids all quoting issues in heredocs
   export _CM_PII_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/pii-redactor.mjs"
   export _CM_QG_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
-  export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router.mjs"
+  export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router-apex.mjs"
   export _CM_SS_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/session-start.mjs"
   export _CM_RUFLO_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
   export _CM_SETTINGS="$SETTINGS"
