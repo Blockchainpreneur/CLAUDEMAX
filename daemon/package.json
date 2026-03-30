@@ -1,0 +1,5 @@
+{
+  "name": "claudemax-daemon",
+  "scripts": { "start": "bun run src/index.ts" },
+  "dependencies": {}
+}
