@@ -392,7 +392,7 @@ async function main() {
 
   // Version check — once per session, non-blocking ──────────────────────────
   try {
-    const flagFile = join(homedir(), '.claudemax', '.version-checked-' + (process.env.CLAUDE_SESSION_ID || process.ppid || 'session'));
+    const flagFile = join(homedir(), '.claudemax', '.version-checked-' + new Date().toISOString().slice(0, 10));
     if (!existsSync(flagFile)) {
       writeFileSync(flagFile, Date.now().toString());
       // Clean up flags older than 24h

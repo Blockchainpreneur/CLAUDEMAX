@@ -448,6 +448,38 @@ verify_hooks() {
     failed=$((failed+1))
   fi
 
+  # Test rational-router-apex — should exit 0 on trivial prompt
+  echo '{"prompt":"hello","cwd":"/tmp","hook_event_name":"UserPromptSubmit"}' \
+    | node "$HELPERS_DIR/rational-router-apex.mjs" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    ok "rational-router-apex ✓ exits cleanly"
+    passed=$((passed+1))
+  else
+    warn "rational-router-apex: non-zero exit on trivial prompt"
+    failed=$((failed+1))
+  fi
+
+  # Test task-complete — should exit 0
+  echo '{}' | node "$HELPERS_DIR/task-complete.mjs" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    ok "task-complete ✓ exits cleanly"
+    passed=$((passed+1))
+  else
+    warn "task-complete: non-zero exit"
+    failed=$((failed+1))
+  fi
+
+  # Test session-start — should exit 0
+  echo '{"session_id":"smoke-test","cwd":"/tmp"}' \
+    | node "$HELPERS_DIR/session-start.mjs" >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    ok "session-start ✓ exits cleanly"
+    passed=$((passed+1))
+  else
+    warn "session-start: non-zero exit"
+    failed=$((failed+1))
+  fi
+
   # Verify settings.json is valid JSON
   if python3 -c "import json; json.load(open('$CLAUDE_DIR/settings.json'))" 2>/dev/null; then
     ok "settings.json ✓ valid JSON"

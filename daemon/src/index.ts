@@ -144,15 +144,21 @@ const server = serve({
     }
 
     try {
+      // GET /health
+      if (method === "GET" && path === "/health") {
+        return Response.json({ ok: true }, { headers });
+      }
+
       // GET /status
       if (method === "GET" && path === "/status") {
         const state = loadState();
+        const rufloCheck = Bun.spawnSync(["pgrep", "-f", "ruflo"], { stdout: "pipe", stderr: "pipe" });
         return Response.json(
           {
             ok: true,
             projects: state.projects.length,
             activeSessions: countActiveSessions(state),
-            rufloRunning: false,
+            rufloRunning: rufloCheck.exitCode === 0,
           },
           { headers }
         );
