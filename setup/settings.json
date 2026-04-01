@@ -1,5 +1,8 @@
 {
   "fastMode": true,
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/pii-redactor.mjs",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/pii-redactor.mjs",
             "timeout": 2000
           }
         ]
@@ -17,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true",
             "timeout": 1500
           }
         ]
@@ -28,7 +31,76 @@
         "hooks": [
           {
             "type": "command",
-            "command": "export PATH=\"/Users/macbook/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && (lsof -ti:4000 > /dev/null 2>&1 || nohup node \"/Users/macbook/Claudecode Tune/src/dashboard-server.mjs\" >> ~/.claude/logs/dashboard.log 2>&1 &) || true",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/session-start.mjs || true",
+            "timeout": 3000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && (lsof -ti:4000 > /dev/null 2>&1 || nohup node \"$HOME/Claudecode Tune/src/dashboard-server.mjs\" >> ~/.claude/logs/dashboard.log 2>&1 &) || true",
+            "timeout": 3000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/claudemax/helpers/session-start-daemon.mjs 2>/dev/null || true",
+            "timeout": 2000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/post-tool-use-apex.mjs 2>/dev/null || true",
+            "timeout": 2000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/task-complete.mjs 2>/dev/null || true",
+            "timeout": 2000
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/claudemax/helpers/session-stop.mjs 2>/dev/null || true",
+            "timeout": 2000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "export PATH=\"$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')/bin:/usr/local/bin:/usr/bin:/bin:$PATH\" && node ~/.claude/helpers/rational-router-apex.mjs 2>/dev/null || true",
             "timeout": 3000
           }
         ]
