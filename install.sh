@@ -489,6 +489,15 @@ verify_hooks() {
     failed=$((failed+1))
   fi
 
+  # Verify CLAUDE.md has visual protocol (critical for diagram rendering)
+  if [ -f "$CLAUDE_DIR/CLAUDE.md" ] && grep -q "CLAUDEMAX DISPLAY" "$CLAUDE_DIR/CLAUDE.md" 2>/dev/null; then
+    ok "CLAUDE.md ✓ visual protocol present"
+    passed=$((passed+1))
+  else
+    warn "CLAUDE.md: visual protocol missing — diagrams will not render"
+    failed=$((failed+1))
+  fi
+
   if [ $failed -eq 0 ]; then
     ok "All $passed smoke tests passed"
   else

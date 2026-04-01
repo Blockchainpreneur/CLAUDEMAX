@@ -119,12 +119,8 @@ try {
   out.push(boxBot());
   out.push('');
 
-  // Colored version → stderr (terminal)
+  // Colored version → stderr (terminal only — not shown in Claude Code chat)
   process.stderr.write(out.join('\n') + '\n');
-
-  // Clean ASCII version → stdout (Claude Code app/web — always visible in response)
-  const clean = out.map(l => l.replace(/\x1b\[[0-9;]*m/g, '')).join('\n');
-  process.stdout.write(`[CLAUDEMAX DONE]\n${clean}\n[/CLAUDEMAX DONE]\n`);
 
   // ── Clear turn events for next response ──────────────────────────────────
   writeFileSync(EVENTS_FILE, '');
