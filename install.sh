@@ -52,7 +52,11 @@ check_os() {
 install_node() {
   export NVM_DIR="$HOME/.nvm"
   [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" 2>/dev/null || true
-  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:$HOME/.nvm/versions/node/v22.0.0/bin:/usr/local/bin:$PATH"
+  # Dynamic nvm path — works regardless of node version
+  local _NVM_VER
+  _NVM_VER=$(cat "$NVM_DIR/alias/default" 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')
+  [ -n "$_NVM_VER" ] && export PATH="$NVM_DIR/versions/node/v${_NVM_VER}/bin:$PATH"
+  export PATH="/usr/local/bin:$PATH"
 
   if command -v node &>/dev/null && node -e "process.exit(parseInt(process.version.slice(1))>=20?0:1)" 2>/dev/null; then
     ok "Node.js $(node --version) already installed"
@@ -113,16 +117,21 @@ install_helpers() {
 install_settings() {
   mkdir -p "$CLAUDE_DIR"
   local SETTINGS="$CLAUDE_DIR/settings.json"
-  local NODE_BIN="$HOME/.nvm/versions/node/v20.19.0/bin"
+  # Dynamic nvm path embedded in hook commands — resolves at hook runtime, not install time
+  # Single-quoted so $HOME and $(...) are NOT expanded here; bash expands them when hooks run
+  local _DYN='$HOME/.nvm/versions/node/v$(cat $HOME/.nvm/alias/default 2>/dev/null | tr -d '"'"'[:space:]'"'"' | sed '"'"'s/^v//'"'"')/bin:/usr/local/bin:/usr/bin:/bin:$PATH'
+  local _PFX="export PATH=\"${_DYN}\" && "
 
   # Pass hook commands via env vars — avoids all quoting issues in heredocs
-  export _CM_PII_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/pii-redactor.mjs"
-  export _CM_QG_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
-  export _CM_RR_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/rational-router-apex.mjs"
-  export _CM_SS_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/session-start.mjs"
-  export _CM_RUFLO_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
-  export _CM_PTU_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/post-tool-use-apex.mjs 2>/dev/null || true"
-  export _CM_TC_CMD="export PATH=\"$NODE_BIN:/usr/local/bin:/usr/bin:/bin:\$PATH\" && node ~/.claude/helpers/task-complete.mjs 2>/dev/null || true"
+  export _CM_PII_CMD="${_PFX}node ~/.claude/helpers/pii-redactor.mjs"
+  export _CM_QG_CMD="${_PFX}node ~/.claude/helpers/code-quality-gate.mjs 2>/dev/null || true"
+  export _CM_RR_CMD="${_PFX}node ~/.claude/helpers/rational-router-apex.mjs 2>/dev/null || true"
+  export _CM_SS_CMD="${_PFX}node ~/.claude/helpers/session-start.mjs || true"
+  export _CM_SSD_CMD="${_PFX}node ~/claudemax/helpers/session-start-daemon.mjs 2>/dev/null || true"
+  export _CM_RUFLO_CMD="${_PFX}cd ~/.ruflo-global && npx ruflo@latest daemon status 2>/dev/null | grep -qi running || (npx ruflo@latest daemon start 2>/dev/null &) || true"
+  export _CM_PTU_CMD="${_PFX}node ~/.claude/helpers/post-tool-use-apex.mjs 2>/dev/null || true"
+  export _CM_TC_CMD="${_PFX}node ~/.claude/helpers/task-complete.mjs 2>/dev/null || true"
+  export _CM_STOP_CMD="${_PFX}node ~/claudemax/helpers/session-stop.mjs 2>/dev/null || true"
   export _CM_SETTINGS="$SETTINGS"
 
   # If file doesn't exist or is empty/corrupt → fresh install
@@ -141,11 +150,14 @@ pii   = os.environ["_CM_PII_CMD"]
 qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
 ss_h  = os.environ["_CM_SS_CMD"]
+ssd   = os.environ["_CM_SSD_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
 ptu   = os.environ["_CM_PTU_CMD"]
 tc    = os.environ["_CM_TC_CMD"]
+stop  = os.environ["_CM_STOP_CMD"]
 settings = {
   "fastMode": True,
+  "permissions": {"defaultMode": "bypassPermissions"},
   "hooks": {
     "PreToolUse": [
       {"matcher": "Write|Edit|MultiEdit|Bash",
@@ -160,10 +172,12 @@ settings = {
       {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]}
     ],
     "Stop": [
-      {"hooks": [{"type": "command", "command": tc,  "timeout": 2000}]}
+      {"hooks": [{"type": "command", "command": tc,   "timeout": 2000}]},
+      {"hooks": [{"type": "command", "command": stop, "timeout": 2000}]}
     ],
     "SessionStart": [
       {"hooks": [{"type": "command", "command": ss_h,  "timeout": 3000}]},
+      {"hooks": [{"type": "command", "command": ssd,   "timeout": 2000}]},
       {"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]}
     ]
   }
@@ -182,15 +196,18 @@ pii   = os.environ["_CM_PII_CMD"]
 qg    = os.environ["_CM_QG_CMD"]
 rr    = os.environ["_CM_RR_CMD"]
 ss_h  = os.environ["_CM_SS_CMD"]
+ssd   = os.environ["_CM_SSD_CMD"]
 ruflo = os.environ["_CM_RUFLO_CMD"]
 ptu   = os.environ["_CM_PTU_CMD"]
 tc    = os.environ["_CM_TC_CMD"]
+stop  = os.environ["_CM_STOP_CMD"]
 path  = os.environ["_CM_SETTINGS"]
 
 with open(path) as f:
     settings = json.load(f)
 
 hooks = settings.setdefault("hooks", {})
+settings.setdefault("permissions", {})["defaultMode"] = "bypassPermissions"
 
 def has_hook(hook_list, marker):
     for block in hook_list:
@@ -215,23 +232,27 @@ if not has_hook(usp, "rational-router-apex"):
         "rational-router" in h.get("command", "") for h in b.get("hooks", []))]
     hooks["UserPromptSubmit"].insert(0, {"hooks": [{"type": "command", "command": rr, "timeout": 3000}]})
 
-# PostToolUse — replace old post-tool-use with apex (no double-hook)
+# PostToolUse
 ptu_hooks = hooks.setdefault("PostToolUse", [])
 if not has_hook(ptu_hooks, "post-tool-use-apex"):
     hooks["PostToolUse"] = [b for b in ptu_hooks if not any(
         "post-tool-use" in h.get("command", "") for h in b.get("hooks", []))]
     hooks["PostToolUse"].insert(0, {"hooks": [{"type": "command", "command": ptu, "timeout": 2000}]})
 
-# Stop — completion diagram + session summary
-stop = hooks.setdefault("Stop", [])
-if not has_hook(stop, "task-complete"):
-    stop.insert(0, {"hooks": [{"type": "command", "command": tc, "timeout": 2000}]})
+# Stop — completion diagram + session cleanup
+stop_hooks = hooks.setdefault("Stop", [])
+if not has_hook(stop_hooks, "task-complete"):
+    stop_hooks.insert(0, {"hooks": [{"type": "command", "command": tc, "timeout": 2000}]})
+if not has_hook(stop_hooks, "session-stop"):
+    stop_hooks.append({"hooks": [{"type": "command", "command": stop, "timeout": 2000}]})
 
-# SessionStart — welcome panel + Ruflo daemon
+# SessionStart — welcome + daemon ping + ruflo
 ss = hooks.setdefault("SessionStart", [])
-if not has_hook(ss, "session-start"):
+if not has_hook(ss, "session-start.mjs"):
     ss.insert(0, {"hooks": [{"type": "command", "command": ss_h, "timeout": 3000}]})
-if not has_hook(ss, "ruflo") and not has_hook(ss, "daemon"):
+if not has_hook(ss, "session-start-daemon"):
+    ss.append({"hooks": [{"type": "command", "command": ssd, "timeout": 2000}]})
+if not has_hook(ss, "ruflo") and not has_hook(ss, "daemon start"):
     ss.append({"hooks": [{"type": "command", "command": ruflo, "timeout": 5000}]})
 
 # Remove old noisy hooks
@@ -277,22 +298,28 @@ apply_settings() {
 
 # ── 6. CLAUDE.md global ───────────────────────────────────────────────────────
 install_claude_md() {
-  local SRC="$REPO_DIR/setup/CLAUDE.global.md"
+  # Try CLAUDE.global.md first, fall back to setup/CLAUDE.md
+  local SRC=""
+  [ -f "$REPO_DIR/setup/CLAUDE.global.md" ] && SRC="$REPO_DIR/setup/CLAUDE.global.md"
+  [ -z "$SRC" ] && [ -f "$REPO_DIR/setup/CLAUDE.md" ] && SRC="$REPO_DIR/setup/CLAUDE.md"
   local DST="$CLAUDE_DIR/CLAUDE.md"
 
-  if [ ! -f "$SRC" ]; then
-    warn "setup/CLAUDE.global.md not found — skipping CLAUDE.md install"
+  if [ -z "$SRC" ]; then
+    warn "No CLAUDE.md template found in setup/ — skipping global CLAUDE.md install"
     return
   fi
 
   [ -f "$DST" ] && cp "$DST" "$DST.bak.$(date +%s)" 2>/dev/null || true
   cp "$SRC" "$DST"
-  ok "CLAUDE.md installed globally"
+  ok "CLAUDE.md installed globally (from $(basename $SRC))"
 }
 
 # ── 7. Ruflo — Enterprise swarm orchestration ─────────────────────────────────
 install_ruflo() {
-  export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
+  local _NVM_VER
+  _NVM_VER=$(cat "$HOME/.nvm/alias/default" 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')
+  [ -n "$_NVM_VER" ] && export PATH="$HOME/.nvm/versions/node/v${_NVM_VER}/bin:$PATH"
+  export PATH="/usr/local/bin:$PATH"
   # Ruflo = 60+ specialized agents, vector memory, self-learning, MCP integration
   # Wraps @claude-flow/cli with enterprise orchestration layer
   local RUFLO_HOME="$HOME/.ruflo-global"
