@@ -152,7 +152,7 @@ install_python_deps() {
 
 # ── Create desktop launcher ───────────────────────────────────────────────────
 create_launcher() {
-  LAUNCHER="$HOME/Desktop/econ.vibe.command"
+  LAUNCHER="$HOME/Desktop/CLAUDEMAX.command"
   cat > "$LAUNCHER" <<'LAUNCHER_SCRIPT'
 #!/bin/bash
 export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
@@ -165,7 +165,7 @@ python3 app.py
 LAUNCHER_SCRIPT
 
   chmod +x "$LAUNCHER"
-  ok "Desktop launcher created: ~/Desktop/econ.vibe.command"
+  ok "Desktop launcher created: ~/Desktop/CLAUDEMAX.command"
 }
 
 # ── Install CLAUDEMAX pure black theme ───────────────────────────────────────
@@ -221,7 +221,7 @@ print_success() {
   echo -e "  2. ${BOLD}Apply pure black theme: see ~/.claude/claudemax-theme-install.txt${RESET}"
   echo -e "  3. ${BOLD}Paste setup/claude-preferences.json into Claude Desktop → Settings → Personal Preferences${RESET}"
   echo ""
-  echo -e "${CYAN}  Setup complete. Double-click econ.vibe on your Desktop to launch.${RESET}"
+  echo -e "${CYAN}  Setup complete. Double-click CLAUDEMAX on your Desktop to launch.${RESET}"
   echo ""
 }
 
