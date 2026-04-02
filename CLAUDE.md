@@ -1,4 +1,4 @@
-# Claude Code Configuration - RuFlo V3
+# CLAUDEMAX — Project Configuration
 
 ## Behavioral Rules (Always Enforced)
 
