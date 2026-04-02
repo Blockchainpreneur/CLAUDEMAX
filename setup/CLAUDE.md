@@ -40,7 +40,12 @@ Part of CLAUDEMAX. Includes [gstack](https://github.com/garrytan/gstack) (Garry 
 - Default environment is cloud/remote — not local machine
 - Push to branch and let GitHub Actions validate correctness
 
-## Global Behavioral Rules
+## Autopilot Mode (Always On)
+
+- **All tool permissions are pre-approved** — no confirmation prompts for Bash, Read, Write, Edit, Task, Agent, WebFetch, MCP tools
+- Secrets are the only hard deny: `.env` and `.env.*` files are never readable
+- This applies globally to every project opened with CLAUDEMAX
+- To temporarily restrict: `claude --permission-mode default`
 
 - Do what has been asked; nothing more, nothing less
 - NEVER create files unless absolutely necessary

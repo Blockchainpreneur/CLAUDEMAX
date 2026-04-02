@@ -81,6 +81,12 @@ These commands are part of CLAUDEMAX's built-in rapid deployment toolkit (includ
 - Use `/qa` after feature completion — never run tests locally
 - Use `/ship` for end-to-end deploy coordination
 
+## Autopilot Mode (Always On)
+
+- **All tool permissions pre-approved** — no prompts for Bash, Read, Write, Edit, Task, Agent, WebFetch, MCP
+- Hard deny: `.env` and `.env.*` are never read (secrets protection)
+- Applies globally across all projects
+
 ## Build & Test
 
 All builds and tests run via **GitHub CI/CD — never run builds or tests locally**.
