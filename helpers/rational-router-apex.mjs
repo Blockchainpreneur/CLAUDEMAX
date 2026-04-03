@@ -151,6 +151,21 @@ const RULES = [
   },
 
   {
+    id: 'e2e-testing',
+    patterns: [
+      /\bplaywright\b/i,
+      /\b(e2e|end.to.end|browser test|ui test|integration test)\b/i,
+      /\b(automate.{0,15}browser|open.{0,10}browser|take screenshot)\b/i,
+      /\b(test.{0,20}(app|page|ui|flow|site|form))\b/i,
+      /\b(write.{0,10}test|run.{0,10}test|add.{0,10}test|spec\.ts|\.spec\.)\b/i,
+      /\b(click.{0,20}button|fill.{0,20}form|screenshot|visual check)\b/i,
+    ],
+    skill: 'playwright → mcp__playwright__* → npx playwright test',
+    label: 'Testing with Playwright',
+    agents: ['tester', 'coder', 'reviewer'],
+  },
+
+  {
     id: 'new-feature',
     patterns: [
       /\b(build|create|make|implement|add|develop)\b.{0,30}\b(feature|component|page|api|endpoint|module|system)\b/,

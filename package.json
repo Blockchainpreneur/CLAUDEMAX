@@ -1,0 +1,14 @@
+{
+  "name": "claudemax",
+  "version": "1.0.0",
+  "description": "**A persistent cognitive operating system for Claude Code.**",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.5.0"
+  }
+}

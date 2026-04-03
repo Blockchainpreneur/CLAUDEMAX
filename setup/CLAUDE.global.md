@@ -62,6 +62,24 @@ generating a new one.
 - CLAUDEMAX coordinates all multi-agent tasks
 - Use specialized strategy for clear role boundaries
 
+## Browser & Testing — Default: Playwright
+
+Playwright is the **default** for all browser activity and app testing, globally.
+
+| Task | Tool |
+|------|------|
+| App testing / E2E | `mcp__playwright__*` tools → `npx playwright test` |
+| Browser automation (click, fill, screenshot) | `mcp__playwright__*` tools directly |
+| Visual checks / screenshots | `mcp__playwright__browser_take_screenshot` |
+| Web research / read content | gstack `/browse` (faster, read-only) |
+
+**Rules (non-negotiable)**
+- NEVER simulate browser interactions with curl/fetch — use Playwright
+- NEVER mock browser behavior in tests — use real Playwright browsers
+- E2E tests always go in `tests/` with `playwright.config.ts` at root
+- Run with `npx playwright test`, never a custom test runner for browser tests
+- `/browse` is for web research only — Playwright is for automation and testing
+
 ## UI/Design (activate only when building UI)
 
 Full specs: `~/.claude/design-system.md` · `~/.claude/animation-system.md`
@@ -116,12 +134,14 @@ gstack is installed at `~/.claude/skills/gstack`. Use these skills for all dev w
 | UI/design | `/design-consultation` → build → `/design-review` → `/qa` → `/ship` |
 | Security concern | `/cso` first, before anything else |
 | Deploy | `/review` → `/qa` → `/cso` → `/ship` → `/land-and-deploy` → `/canary` |
-| Web browsing | `/browse [url]` — ALWAYS, never simulate |
+| Web browsing (research) | `/browse [url]` — ALWAYS, never simulate |
+| App testing / E2E / browser automation | Playwright MCP tools — ALWAYS |
 | Large changes | `/autoplan` — triggers full pipeline automatically |
 | Destructive ops | `/careful` first |
 
 ### Non-negotiable rules
 - NEVER ship without `/review` + `/qa` + `/cso`
-- NEVER browse without `/browse`
+- NEVER browse for research without `/browse`
+- NEVER automate browsers or write E2E tests without Playwright
 - After deploy: always `/canary` then `/retro`
 - Update gstack: `/gstack-upgrade`
