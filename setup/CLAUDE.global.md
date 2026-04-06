@@ -71,6 +71,21 @@ Examples of what ENRICH adds:
 - Deploying → smoke test, rollback plan, canary monitoring
 - Designing UI → mobile-first, dark mode, empty/error/overflow states, WCAG 2.1
 
+### TOOLS Protocol
+
+When the directive contains `TOOLS:`, use those specific tools and MCPs for the task.
+gstack skills are always the base workflow. TOOLS tells you which MCPs to reach for
+on top of gstack. Use them — don't default to generic approaches when a specialized
+MCP exists.
+
+Available MCPs and when to use them:
+- `mcp__playwright__*` — browser testing, E2E, screenshots, form automation
+- `mcp__supabase__*` — database, auth, storage, RLS policies, migrations
+- `mcp__github__*` — PRs, issues, releases, branch management
+- `mcp__shadcn__*` — UI component registry, audit checklists
+- `mcp__magicuidesign-mcp__*` — animated and interactive UI components
+- `mcp__context7__*` — latest framework/library documentation (always check before coding)
+
 ## Agent Teams & Swarm
 
 - CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is active globally

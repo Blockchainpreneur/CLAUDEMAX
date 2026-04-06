@@ -427,6 +427,77 @@ const ENRICHMENTS = {
   ],
 };
 
+// ── Tool recommendations — best instruments per task ────────────────────────
+// gstack is always the base. These add the specific MCPs and tools that make
+// each task type execute at the highest level.
+const TOOL_RECS = {
+  'new-feature': [
+    'gstack: /office-hours → /plan-eng-review → build → /review → /qa → /cso → /ship',
+    'mcp__playwright__: E2E tests for all user flows',
+    'mcp__supabase__: backend, auth, storage, RLS policies',
+    'mcp__shadcn__: UI component library (check registry first)',
+    'mcp__context7__: latest framework docs before coding',
+  ],
+  'bug-fix': [
+    'gstack: /investigate → fix → /review → /qa',
+    'mcp__playwright__: reproduce the bug in a real browser',
+    'mcp__context7__: check if it is a known framework issue',
+  ],
+  design: [
+    'gstack: /design-consultation → build → /design-review → /qa → /ship',
+    'mcp__shadcn__: component library + audit checklist',
+    'mcp__magicuidesign-mcp__: animated/interactive components',
+    'mcp__playwright__: visual regression + responsive testing',
+  ],
+  'deploy-ship': [
+    'gstack: /review → /qa → /cso → /ship → /land-and-deploy → /canary',
+    'mcp__github__: PR creation, branch management, release',
+  ],
+  'e2e-testing': [
+    'mcp__playwright__: all browser automation and testing',
+    'gstack: /qa for full QA workflow with bug fixes',
+  ],
+  security: [
+    'gstack: /cso for OWASP Top 10 + STRIDE audit',
+    'mcp__supabase__: check RLS policies, auth config, exposed keys',
+  ],
+  performance: [
+    'gstack: /benchmark for baseline measurement',
+    'mcp__playwright__: Core Web Vitals + page load profiling',
+  ],
+  'code-review': [
+    'gstack: /review for comprehensive code review',
+    'gstack: /cso for security implications',
+  ],
+  refactor: [
+    'gstack: /review → /qa after refactoring',
+    'mcp__playwright__: regression tests to verify nothing broke',
+    'mcp__context7__: check framework best practices',
+  ],
+  investigate: [
+    'gstack: /investigate for systematic root-cause debugging',
+    'mcp__playwright__: reproduce in browser if UI-related',
+    'mcp__context7__: check framework docs for known issues',
+  ],
+  'web-browse': [
+    'gstack: /browse for fast web research',
+  ],
+  'brain-dump': [
+    'gstack: extract decisions → prioritize → structure',
+  ],
+  strategy: [
+    'gstack: /office-hours for strategic review',
+    'mcp__context7__: market/technology research',
+  ],
+  pitch: [
+    'gstack: /office-hours for pitch structure and feedback',
+  ],
+  research: [
+    'mcp__context7__: technical docs and framework references',
+    'gstack: /browse for web research',
+  ],
+};
+
 // Entrepreneur tasks get a cleaner label style
 const ENTREPRENEUR_TASKS = new Set([
   'brain-dump', 'write-content', 'brainstorm', 'decide',
@@ -689,6 +760,11 @@ async function main() {
     ? `ENRICH: production-ready — ${enrichItems.join(', ')}\n`
     : '';
 
+  const toolItems = TOOL_RECS[primary.id] || [];
+  const toolsLine = toolItems.length
+    ? `TOOLS: ${toolItems.join(' | ')}\n`
+    : '';
+
   if (complexity >= 50 && primary.agents?.length) {
     const agentList = (primary.agents || []).join(', ');
     process.stdout.write(`[CLAUDEMAX RIPPLE] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
@@ -696,9 +772,11 @@ async function main() {
     process.stdout.write(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message\n`);
     process.stdout.write(`VERIFY: confirm Task tool was called for each agent before proceeding\n`);
     if (enrichLine) process.stdout.write(enrichLine);
+    if (toolsLine)  process.stdout.write(toolsLine);
   } else {
     process.stdout.write(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}\n`);
     if (enrichLine) process.stdout.write(enrichLine);
+    if (toolsLine)  process.stdout.write(toolsLine);
   }
 
   process.exit(0);
