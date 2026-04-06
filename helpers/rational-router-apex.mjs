@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
- * Rational Router APEX — CLAUDEMAX 2.0
- * For visionaries, entrepreneurs, and thinkers.
+ * Ripple — CLAUDEMAX Autopilot Engine
+ * For visionaries, entrepreneurs, and builders shipping real products.
  *
- * Extends the dev-focused router with a full entrepreneur cognitive layer:
- * brain-dumps, strategy, research, writing, pitches, hiring, decisions.
+ * Extends the dev-focused router with:
+ * - Entrepreneur cognitive layer (brain-dumps, strategy, pitches, hiring)
+ * - Prompt enrichment engine (adds production context users don't ask for)
+ * - gstack-first routing (~95% of tasks flow through gstack skills)
  *
  * Output tiers:
- *  - Trivial  (<15%): silent
- *  - Medium (15-49%): single routing hint
- *  - Complex  (50%+): full autopilot panel + EXECUTE/SPAWN directives
+ *  - Trivial  (<3%): silent (only greetings, no real task)
+ *  - Medium  (3-49%): compact routing + ENRICH context
+ *  - Complex (50%+): full Ripple panel + EXECUTE/SPAWN/ENRICH directives
  *
  * Non-blocking: always exits 0.
  */
@@ -331,6 +333,100 @@ const AGENT_ICONS = {
 
 const TIER_LABEL   = { HAIKU: 'fast', SONNET: 'smart', OPUS: 'most capable' };
 
+// ── Prompt enrichment — production context the user didn't ask for ─────────
+const ENRICHMENTS = {
+  'new-feature': [
+    'input validation at all boundaries',
+    'error states (network failure, invalid input, timeout, empty)',
+    'loading/skeleton states',
+    'responsive design (mobile-first)',
+    'accessibility (ARIA, keyboard nav)',
+    'E2E tests with Playwright',
+    'edge cases and overflow handling',
+  ],
+  'bug-fix': [
+    'root cause analysis before patching',
+    'regression test that catches this exact bug',
+    'check for same pattern in related code',
+    'verify fix handles edge cases',
+  ],
+  'deploy-ship': [
+    'pre-deploy smoke test',
+    'rollback plan if deploy fails',
+    'post-deploy canary monitoring',
+    'verify zero-downtime',
+  ],
+  design: [
+    'mobile-first responsive',
+    'dark mode support',
+    'loading/empty/error/overflow states',
+    'accessibility (WCAG 2.1 AA)',
+    'visual regression test',
+  ],
+  'e2e-testing': [
+    'happy path + error paths + edge cases',
+    'mobile viewport testing',
+    'form validation testing',
+    'cross-browser (chromium + firefox)',
+  ],
+  refactor: [
+    'preserve all existing behavior',
+    'add/update tests to cover refactored code',
+    'benchmark before and after for performance',
+  ],
+  security: [
+    'OWASP Top 10 check',
+    'STRIDE threat model',
+    'input sanitization audit',
+    'auth/session handling review',
+  ],
+  'code-review': [
+    'security implications',
+    'performance impact',
+    'test coverage gaps',
+    'edge cases missed',
+  ],
+  performance: [
+    'baseline measurement before changes',
+    'identify actual bottleneck (profile, don\'t guess)',
+    'test with realistic data volume',
+    'check for N+1 queries and memory leaks',
+  ],
+  investigate: [
+    'reproduce the issue first',
+    'check logs and error traces',
+    'narrow scope before patching',
+    'verify the fix doesn\'t mask the real problem',
+  ],
+  'brain-dump': [
+    'extract actionable decisions',
+    'identify blockers and dependencies',
+    'prioritize by impact vs effort',
+  ],
+  strategy: [
+    'competitive landscape',
+    'distribution channel strategy',
+    'unit economics check',
+    'go-to-market timeline',
+  ],
+  pitch: [
+    'problem/solution clarity',
+    'market size evidence',
+    'traction metrics',
+    'why now, why you',
+  ],
+  fundraise: [
+    'round size and use of funds',
+    'key metrics investors will ask about',
+    'comparable raises in this space',
+  ],
+  research: [
+    'primary vs secondary sources',
+    'verify claims with data',
+    'identify conflicting evidence',
+  ],
+};
+
 // Entrepreneur tasks get a cleaner label style
 const ENTREPRENEUR_TASKS = new Set([
   'brain-dump', 'write-content', 'brainstorm', 'decide',
@@ -392,7 +488,7 @@ async function main() {
     }
   } catch {}
 
-  if (complexity < 15) process.exit(0);
+  if (complexity < 3) process.exit(0);  // only truly empty tasks skip — Ripple routes everything
 
   const tier           = complexity < 30 ? 'HAIKU' : complexity < 65 ? 'SONNET' : 'OPUS';
   const isEntrepreneur = ENTREPRENEUR_TASKS.has(primary.id);
@@ -531,8 +627,8 @@ async function main() {
 
     // Header
     const headerRight = `${primary.label}  ·  ${D}${TIER_LABEL[tier]}${R}`;
-    const headerFill  = '─'.repeat(Math.max(0, W - 4 - vis(` ${icon} AUTOPILOT`).length - vis(headerRight).length - 2));
-    out.push(` ${C}${icon} AUTOPILOT${R}  ${headerFill}  ${headerRight}`);
+    const headerFill  = '─'.repeat(Math.max(0, W - 4 - vis(` ${icon} RIPPLE`).length - vis(headerRight).length - 2));
+    out.push(` ${C}${icon} RIPPLE${R}  ${headerFill}  ${headerRight}`);
     out.push('');
 
     // INPUT node
@@ -588,14 +684,21 @@ async function main() {
   }
 
   // ── Machine directive → STDOUT (Claude reads and executes) ────────────────
+  const enrichItems = ENRICHMENTS[primary.id] || [];
+  const enrichLine  = enrichItems.length
+    ? `ENRICH: production-ready — ${enrichItems.join(', ')}\n`
+    : '';
+
   if (complexity >= 50 && primary.agents?.length) {
     const agentList = (primary.agents || []).join(', ');
-    process.stdout.write(`[CLAUDEMAX APEX] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
+    process.stdout.write(`[CLAUDEMAX RIPPLE] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
     process.stdout.write(`EXECUTE: ${primary.skill} — run NOW, do not wait for user confirmation\n`);
     process.stdout.write(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message\n`);
     process.stdout.write(`VERIFY: confirm Task tool was called for each agent before proceeding\n`);
+    if (enrichLine) process.stdout.write(enrichLine);
   } else {
     process.stdout.write(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}\n`);
+    if (enrichLine) process.stdout.write(enrichLine);
   }
 
   process.exit(0);

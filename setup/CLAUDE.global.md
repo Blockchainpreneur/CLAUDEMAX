@@ -45,15 +45,31 @@ generating a new one.
 - Always validate user input at system boundaries
 - Always sanitize file paths to prevent directory traversal
 
-## Active Hooks (Autopilot Stack)
+## Ripple — Autopilot Engine (Always On)
 
-- **rational-router v3** — UserPromptSubmit: auto-detects task, outputs IMPERATIVE directive — EXECUTE it immediately
-  - Trivial (<15%): silent
-  - Medium (15-49%): `[CLAUDEMAX] task:X model:Y → /skill` — use suggested skill + model tier
-  - Complex (50%+): `[CLAUDEMAX AUTOPILOT] EXECUTE: ... SPAWN: ...` — run pipeline NOW, spawn agents in parallel
+Ripple is the CLAUDEMAX autopilot. It runs on every prompt, routes through gstack,
+and enriches requests with production context the user didn't explicitly ask for.
+
+- **Ripple router** — UserPromptSubmit: auto-detects task, enriches prompt, outputs IMPERATIVE directive
+  - Trivial (<3%): silent (greetings only)
+  - Medium (3-49%): `[CLAUDEMAX] task:X model:Y → /skill` + `ENRICH:` context
+  - Complex (50%+): `[CLAUDEMAX RIPPLE] EXECUTE: ... SPAWN: ... ENRICH: ...` — full pipeline
 - **pii-redactor** — PreToolUse on Write/Edit/Bash: blocks secrets, API keys, credentials
 - **code-quality-gate** — PreToolUse on Write/Edit: blocks hardcoded secrets (HIGH), warns on debug/any/empty-catch (WARN)
 - **Ruflo daemon** — SessionStart: auto-starts swarm engine (60+ specialized agents, vector memory)
+
+### ENRICH Protocol
+
+When the Ripple directive contains `ENRICH:`, incorporate those requirements into your
+implementation even if the user didn't explicitly ask for them. These are production-ready
+defaults that every shipped product needs. Think of them as things a senior eng would
+catch in code review — add them upfront so the review passes first try.
+
+Examples of what ENRICH adds:
+- Building a feature → input validation, error states, loading states, accessibility, E2E tests
+- Fixing a bug → root cause analysis, regression test, check related code
+- Deploying → smoke test, rollback plan, canary monitoring
+- Designing UI → mobile-first, dark mode, empty/error/overflow states, WCAG 2.1
 
 ## Agent Teams & Swarm
 
