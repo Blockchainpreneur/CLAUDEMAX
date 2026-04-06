@@ -572,50 +572,31 @@ async function main() {
       JSON.stringify({ id: primary.id, label: primary.label, ts: new Date().toISOString() }));
   } catch {}
 
-  // Version check — once per session, non-blocking ──────────────────────────
+  // Version check — uses cached update-check.sh (same pattern as gstack)
+  // Non-blocking: spawns in background, shows banner on stderr if update found
   try {
-    const flagFile = join(homedir(), '.claudemax', '.version-checked-' + new Date().toISOString().slice(0, 10));
-    if (!existsSync(flagFile)) {
-      writeFileSync(flagFile, Date.now().toString());
-      // Clean up flags older than 24h
-      try {
-        const dir = join(homedir(), '.claudemax');
-        const cutoff = Date.now() - 86400000;
-        for (const f of (await import('fs')).readdirSync(dir).filter(f => f.startsWith('.version-checked-'))) {
-          try { const age = parseInt((await import('fs')).readFileSync(join(dir, f), 'utf8')); if (age < cutoff) (await import('fs')).unlinkSync(join(dir, f)); } catch {}
-        }
-      } catch {}
-      // Spawn background check — exits immediately, never blocks
-      const checker = `
-        import { readFileSync, existsSync } from 'fs';
-        import { join } from 'path';
-        import { homedir } from 'os';
-        try {
-          const localVersion = (existsSync(join(homedir(), 'claudemax', 'VERSION'))
-            ? readFileSync(join(homedir(), 'claudemax', 'VERSION'), 'utf8')
-            : '0.0.0').trim();
-          const res = await fetch('https://raw.githubusercontent.com/Blockchainpreneur/CLAUDEMAX/main/VERSION', { signal: AbortSignal.timeout(4000) });
-          if (!res.ok) process.exit(0);
-          const remoteVersion = (await res.text()).trim();
-          if (remoteVersion && remoteVersion !== localVersion) {
-            const Y = '\\x1b[33m', R = '\\x1b[0m', C = '\\x1b[36m', B = '\\x1b[1m';
-            process.stderr.write([
-              '',
-              Y + B + '  ┌─ CLAUDEMAX UPDATE REQUIRED ' + '─'.repeat(24) + '┐' + R,
-              Y + '  │' + R + '  Your version : ' + C + localVersion + R + ' '.repeat(Math.max(0, 33 - localVersion.length)) + Y + '│' + R,
-              Y + '  │' + R + '  Latest        : ' + C + B + remoteVersion + R + ' (critical fixes) ' + ' '.repeat(Math.max(0, 14 - remoteVersion.length)) + Y + '│' + R,
-              Y + '  │' + R + '                                              ' + Y + '│' + R,
-              Y + '  │' + R + '  ' + B + 'cd ~/claudemax && git pull && bash install.sh' + R + '  ' + Y + '│' + R,
-              Y + B + '  └' + '─'.repeat(50) + '┘' + R,
-              '',
-            ].join('\\n') + '\\n');
-          }
-        } catch {}
-      `;
-      spawn(process.execPath, ['--input-type=module'], {
-        detached: true, stdio: ['pipe', 'ignore', process.stderr],
+    const checkScript = join(homedir(), 'claudemax', 'scripts', 'update-check.sh');
+    if (existsSync(checkScript)) {
+      spawn('bash', [checkScript], {
+        detached: true, stdio: ['ignore', 'pipe', 'ignore'],
         env: { ...process.env },
-      }).stdin.end(checker);
+      }).stdout.on('data', (data) => {
+        const line = data.toString().trim();
+        if (line.startsWith('UPGRADE_AVAILABLE')) {
+          const [, local, remote] = line.split(' ');
+          const Y = '\x1b[33m', R = '\x1b[0m', C = '\x1b[36m', B = '\x1b[1m';
+          process.stderr.write([
+            '',
+            `${Y}${B}  ┌─ CLAUDEMAX UPDATE AVAILABLE ${'─'.repeat(22)}┐${R}`,
+            `${Y}  │${R}  You: ${C}${local}${R}${' '.repeat(Math.max(0, 40 - (local||'').length))}${Y}│${R}`,
+            `${Y}  │${R}  New: ${C}${B}${remote}${R}${' '.repeat(Math.max(0, 40 - (remote||'').length))}${Y}│${R}`,
+            `${Y}  │${R}                                              ${Y}│${R}`,
+            `${Y}  │${R}  ${B}cd ~/claudemax && git pull && bash install.sh${R}  ${Y}│${R}`,
+            `${Y}${B}  └${'─'.repeat(50)}┘${R}`,
+            '',
+          ].join('\n') + '\n');
+        }
+      });
     }
   } catch {}
 

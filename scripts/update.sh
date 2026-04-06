@@ -8,11 +8,13 @@ echo "🔄 Updating CLAUDEMAX..."
 cd "$REPO_DIR"
 git pull origin main
 
-# Refresh Python deps
-pip3 install --upgrade textual rich --quiet
+# Dynamic nvm path — no hardcoded versions
+NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+_NVM_VER=$(cat "$NVM_DIR/alias/default" 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')
+[ -n "$_NVM_VER" ] && export PATH="$NVM_DIR/versions/node/v${_NVM_VER}/bin:$PATH"
+export PATH="/usr/local/bin:$PATH"
 
-# Refresh Node deps
-export PATH="$HOME/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:$PATH"
-npm install -g @anthropic-ai/claude-code --quiet 2>/dev/null || true
+# Re-run installer to sync hooks, helpers, CLAUDE.md
+bash "$REPO_DIR/install.sh"
 
 echo "✅ CLAUDEMAX updated successfully."
