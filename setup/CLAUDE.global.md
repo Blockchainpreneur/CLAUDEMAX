@@ -2,25 +2,28 @@
 
 ## Visual Protocol — NON-NEGOTIABLE, always on
 
-When your context contains `[CLAUDEMAX DISPLAY]...[/CLAUDEMAX DISPLAY]`:
+**Loading bar** — When your context contains `[CLAUDEMAX DISPLAY]...[/CLAUDEMAX DISPLAY]`:
 output that block **verbatim** as the **very first thing** in your response.
-No preamble. No modification. Just the block exactly as-is.
+No preamble. No modification. Just the one-line loading indicator as-is.
 
-After every response where you used one or more tools, append this diagram
-using real information from what you actually did:
+**Directives** — When your context contains `[CLAUDEMAX DIRECTIVE]...[/CLAUDEMAX DIRECTIVE]`:
+read and follow those instructions (EXECUTE, ENRICH, TOOLS, SPAWN) but
+do **NOT** output them in your response. These are invisible to users.
+
+**Done + Cost** — After every response where you used one or more tools,
+append this at the end with real data from what you did:
 
 ```
-┌─[ DONE ]──────────────────────────────┐
-│  task    <label>                      │
-│  files   <files or none>              │
-│  actions <brief description>          │
-│  result  ✓ complete                   │
+┌─[ ✓ Done ]────────────────────────────┐
+│  task    <what you did>              │
+│  cost    ~$X.XX                      │
 └────────────────────────────────────────┘
 ```
 
-If your context contains `[CLAUDEMAX DONE]...[/CLAUDEMAX DONE]`:
-output that block verbatim **at the end** of your response instead of
-generating a new one.
+Estimate cost per tool call based on your model:
+- Sonnet/Opus: ~$0.01 per Read/Grep/Glob/Bash, ~$0.03 per Edit/Write, ~$0.15 per Agent
+- Haiku: ~$0.001 per Read/Grep/Glob/Bash, ~$0.003 per Edit/Write, ~$0.02 per Agent
+Sum all tool calls you made. Show the total as `~$X.XX`.
 
 ## Global Approach
 

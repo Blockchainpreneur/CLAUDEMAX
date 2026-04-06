@@ -623,142 +623,45 @@ async function main() {
     } catch { /* non-blocking */ }
   }
 
-  // ── State machine diagram → STDERR ──────────────────────────────────────
+  // ── Compact loading bar → user sees this in chat ─────────────────────────
   const C  = isEntrepreneur ? '\x1b[35m' : '\x1b[36m';
   const R  = '\x1b[0m';
   const D  = '\x1b[2m';
-  const W  = 40;           // total box width including borders
-  const IW = W - 4;        // inner content width (2 border + 2 padding)
-  const MID = Math.floor(W / 2);  // connector column
+  const B  = '\x1b[1m';
 
-  const vis  = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
-  const fit  = (s, w) => s + ' '.repeat(Math.max(0, w - [...vis(s)].length));
+  // Terminal display (stderr — always visible in terminal)
+  process.stderr.write(`\n ${C}▸ Ripple${R}  ${B}${primary.label}${R}  ${D}· ${tier} · ${complexity}%${R}\n\n`);
 
-  // Box primitives
-  const boxTop = (tag = '', rightLabel = '') => {
-    const tagStr = tag ? `[ ${tag} ]` : '';
-    const rl     = rightLabel ? ` ${rightLabel} ` : '';
-    const fill   = W - 2 - tagStr.length - rl.length;
-    return `${C}┌─${tagStr}${'─'.repeat(Math.max(0, fill))}${rl.length ? D + rl + R + C : ''}┐${R}`;
-  };
-  const boxBot = () => `${C}└${'─'.repeat(W - 2)}┘${R}`;
-  const boxRow = (content) => `${C}│${R}  ${fit(content, IW)}${C}│${R}`;
-  const conn   = () => [
-    ' '.repeat(MID) + `${C}│${R}`,
-    ' '.repeat(MID) + `${C}▼${R}`,
-  ];
+  // Chat display — compact loading bar (Claude renders this verbatim)
+  const loadBar = [
+    `▸ Ripple · ${primary.label} · ${tier}`,
+  ].join('\n');
+  process.stdout.write(`[CLAUDEMAX DISPLAY]\n${loadBar}\n[/CLAUDEMAX DISPLAY]\n`);
 
-  // Pipeline renderer — wraps long pipelines across lines
-  const renderPipeline = (skill) => {
-    const steps = skill.split(/\s*→\s*/).map(s => s.trim()).filter(Boolean);
-    const rows  = [];
-    let line    = '';
-    let lineLen = 0;
-    for (let i = 0; i < steps.length; i++) {
-      const sep    = i === 0 ? '' : ' ──► ';
-      const chunk  = sep + steps[i];
-      if (lineLen + vis(chunk).length > IW && i > 0) {
-        rows.push(boxRow(line));
-        line    = `     ${steps[i]}`;  // indent continuation
-        lineLen = 5 + steps[i].length;
-      } else {
-        line    += chunk;
-        lineLen += vis(chunk).length;
-      }
-    }
-    if (line) rows.push(boxRow(line));
-    return rows;
-  };
-
-  const shortPrompt = promptText.length > IW - 2 ? promptText.slice(0, IW - 3) + '…' : promptText;
-
-  if (complexity >= 50 && primary.agents?.length) {
-    // ── Full autopilot state machine ────────────────────────────────────────
-    const icon = isEntrepreneur ? '◆' : '▸';
-    const out  = [''];
-
-    // Header
-    const headerRight = `${primary.label}  ·  ${D}${TIER_LABEL[tier]}${R}`;
-    const headerFill  = '─'.repeat(Math.max(0, W - 4 - vis(` ${icon} RIPPLE`).length - vis(headerRight).length - 2));
-    out.push(` ${C}${icon} RIPPLE${R}  ${headerFill}  ${headerRight}`);
-    out.push('');
-
-    // INPUT node
-    out.push(boxTop('INPUT'));
-    out.push(boxRow(`${D}"${shortPrompt}"${R}`));
-    out.push(boxBot());
-    out.push(...conn());
-
-    // DETECT node
-    out.push(boxTop('DETECT'));
-    out.push(boxRow(`task    ${C}${primary.id}${R}`));
-    out.push(boxRow(`model   ${C}${tier}${R}  ${D}(${TIER_LABEL[tier]})${R}   scope  ${C}${complexity}%${R}`));
-    out.push(boxBot());
-    out.push(...conn());
-
-    // SPAWN node
-    out.push(boxTop('SPAWN', 'parallel'));
-    for (const agent of (primary.agents || [])) {
-      const ico = AGENT_ICONS[agent] || '▸ ';
-      const lbl = AGENT_LABELS[agent] || agent;
-      out.push(boxRow(`${C}${ico}${R} ${fit(agent, 14)}${D}${lbl}${R}`));
-    }
-    out.push(boxBot());
-    out.push(...conn());
-
-    // EXECUTE node
-    out.push(boxTop('EXECUTE'));
-    out.push(...renderPipeline(primary.skill));
-    out.push(boxBot());
-
-    out.push('');
-
-    // Colored version → stderr (terminal always-visible)
-    process.stderr.write(out.join('\n') + '\n');
-
-    // Clean ASCII version → stdout so Claude outputs it in its response (app/web visible)
-    const clean = out.map(l => l.replace(/\x1b\[[0-9;]*m/g, '')).join('\n');
-    process.stdout.write(`[CLAUDEMAX DISPLAY]\n${clean}\n[/CLAUDEMAX DISPLAY]\n`);
-
-  } else {
-    // ── Compact routing diagram (medium tier) ───────────────────────────────
-    const icon  = isEntrepreneur ? '◆' : '▸';
-    const out   = [''];
-    out.push(boxTop(`${icon}  ${primary.label}`, tier));
-    out.push(...renderPipeline(primary.skill));
-    out.push(boxBot());
-    out.push('');
-
-    process.stderr.write(out.join('\n') + '\n');
-
-    const clean = out.map(l => l.replace(/\x1b\[[0-9;]*m/g, '')).join('\n');
-    process.stdout.write(`[CLAUDEMAX DISPLAY]\n${clean}\n[/CLAUDEMAX DISPLAY]\n`);
-  }
-
-  // ── Machine directive → STDOUT (Claude reads and executes) ────────────────
+  // ── Directives → Claude reads but does NOT render ─────────────────────────
   const enrichItems = ENRICHMENTS[primary.id] || [];
   const enrichLine  = enrichItems.length
-    ? `ENRICH: production-ready — ${enrichItems.join(', ')}\n`
+    ? `ENRICH: production-ready — ${enrichItems.join(', ')}`
     : '';
 
   const toolItems = TOOL_RECS[primary.id] || [];
   const toolsLine = toolItems.length
-    ? `TOOLS: ${toolItems.join(' | ')}\n`
+    ? `TOOLS: ${toolItems.join(' | ')}`
     : '';
 
+  const directives = [];
   if (complexity >= 50 && primary.agents?.length) {
     const agentList = (primary.agents || []).join(', ');
-    process.stdout.write(`[CLAUDEMAX RIPPLE] task:${primary.id} model:${tier} complexity:${complexity}%\n`);
-    process.stdout.write(`EXECUTE: ${primary.skill} — run NOW, do not wait for user confirmation\n`);
-    process.stdout.write(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message\n`);
-    process.stdout.write(`VERIFY: confirm Task tool was called for each agent before proceeding\n`);
-    if (enrichLine) process.stdout.write(enrichLine);
-    if (toolsLine)  process.stdout.write(toolsLine);
+    directives.push(`task:${primary.id} model:${tier} complexity:${complexity}%`);
+    directives.push(`EXECUTE: ${primary.skill}`);
+    directives.push(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message`);
   } else {
-    process.stdout.write(`[CLAUDEMAX] task:${primary.id} model:${tier} → ${primary.skill}\n`);
-    if (enrichLine) process.stdout.write(enrichLine);
-    if (toolsLine)  process.stdout.write(toolsLine);
+    directives.push(`task:${primary.id} model:${tier} → ${primary.skill}`);
   }
+  if (enrichLine) directives.push(enrichLine);
+  if (toolsLine)  directives.push(toolsLine);
+
+  process.stdout.write(`[CLAUDEMAX DIRECTIVE]\n${directives.join('\n')}\n[/CLAUDEMAX DIRECTIVE]\n`);
 
   process.exit(0);
 }
