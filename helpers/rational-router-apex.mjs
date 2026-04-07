@@ -16,7 +16,7 @@
  * Non-blocking: always exits 0.
  */
 
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { writeFileSync, readFileSync, existsSync, mkdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
@@ -593,31 +593,32 @@ async function main() {
       JSON.stringify({ id: primary.id, label: primary.label, ts: new Date().toISOString() }));
   } catch {}
 
-  // Version check — uses cached update-check.sh (same pattern as gstack)
-  // Non-blocking: spawns in background, shows banner on stderr if update found
+  // Version check — synchronous, runs BEFORE routing (same pattern as gstack preamble)
+  // Cache-backed: 60min TTL for UP_TO_DATE, so this is instant after first check
   try {
     const checkScript = join(homedir(), 'claudemax', 'scripts', 'update-check.sh');
     if (existsSync(checkScript)) {
-      spawn('bash', [checkScript], {
-        detached: true, stdio: ['ignore', 'pipe', 'ignore'],
-        env: { ...process.env },
-      }).stdout.on('data', (data) => {
-        const line = data.toString().trim();
-        if (line.startsWith('UPGRADE_AVAILABLE')) {
-          const [, local, remote] = line.split(' ');
-          const Y = '\x1b[33m', R = '\x1b[0m', C = '\x1b[36m', B = '\x1b[1m';
-          process.stderr.write([
-            '',
-            `${Y}${B}  ┌─ CLAUDEMAX UPDATE AVAILABLE ${'─'.repeat(22)}┐${R}`,
-            `${Y}  │${R}  You: ${C}${local}${R}${' '.repeat(Math.max(0, 40 - (local||'').length))}${Y}│${R}`,
-            `${Y}  │${R}  New: ${C}${B}${remote}${R}${' '.repeat(Math.max(0, 40 - (remote||'').length))}${Y}│${R}`,
-            `${Y}  │${R}                                              ${Y}│${R}`,
-            `${Y}  │${R}  ${B}cd ~/claudemax && git pull && bash install.sh${R}  ${Y}│${R}`,
-            `${Y}${B}  └${'─'.repeat(50)}┘${R}`,
-            '',
-          ].join('\n') + '\n');
-        }
-      });
+      const result = execSync(`bash "${checkScript}" 2>/dev/null`, { encoding: 'utf8', timeout: 5000 }).trim();
+      if (result.startsWith('UPGRADE_AVAILABLE')) {
+        const [, local, remote] = result.split(' ');
+        const Y = '\x1b[33m', R = '\x1b[0m', C = '\x1b[36m', B = '\x1b[1m';
+        const banner = [
+          '',
+          `${Y}${B}  ┌─ CLAUDEMAX UPDATE REQUIRED ${'─'.repeat(23)}┐${R}`,
+          `${Y}  │${R}                                              ${Y}│${R}`,
+          `${Y}  │${R}  You: ${C}${local}${R}${' '.repeat(Math.max(0, 40 - (local||'').length))}${Y}│${R}`,
+          `${Y}  │${R}  New: ${C}${B}${remote}${R}${' '.repeat(Math.max(0, 40 - (remote||'').length))}${Y}│${R}`,
+          `${Y}  │${R}                                              ${Y}│${R}`,
+          `${Y}  │${R}  ${B}cd ~/claudemax && git pull && bash install.sh${R}  ${Y}│${R}`,
+          `${Y}  │${R}                                              ${Y}│${R}`,
+          `${Y}${B}  └${'─'.repeat(50)}┘${R}`,
+          '',
+        ].join('\n') + '\n';
+        // Show on stderr (terminal) — always visible
+        process.stderr.write(banner);
+        // Also inject into stdout so Claude sees it and tells the user
+        process.stdout.write(`[CLAUDEMAX UPDATE] v${local} → v${remote}. Run: cd ~/claudemax && git pull && bash install.sh\n`);
+      }
     }
   } catch {}
 
