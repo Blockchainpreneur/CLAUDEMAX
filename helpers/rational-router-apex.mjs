@@ -593,7 +593,7 @@ async function main() {
       JSON.stringify({ id: primary.id, label: primary.label, ts: new Date().toISOString() }));
   } catch {}
 
-  // Version check — synchronous, runs BEFORE routing (same pattern as gstack preamble)
+  // Version check — synchronous, BLOCKS before routing (same pattern as gstack preamble)
   // Cache-backed: 60min TTL for UP_TO_DATE, so this is instant after first check
   try {
     const checkScript = join(homedir(), 'claudemax', 'scripts', 'update-check.sh');
@@ -601,23 +601,20 @@ async function main() {
       const result = execSync(`bash "${checkScript}" 2>/dev/null`, { encoding: 'utf8', timeout: 5000 }).trim();
       if (result.startsWith('UPGRADE_AVAILABLE')) {
         const [, local, remote] = result.split(' ');
-        const Y = '\x1b[33m', R = '\x1b[0m', C = '\x1b[36m', B = '\x1b[1m';
-        const banner = [
-          '',
-          `${Y}${B}  ┌─ CLAUDEMAX UPDATE REQUIRED ${'─'.repeat(23)}┐${R}`,
-          `${Y}  │${R}                                              ${Y}│${R}`,
-          `${Y}  │${R}  You: ${C}${local}${R}${' '.repeat(Math.max(0, 40 - (local||'').length))}${Y}│${R}`,
-          `${Y}  │${R}  New: ${C}${B}${remote}${R}${' '.repeat(Math.max(0, 40 - (remote||'').length))}${Y}│${R}`,
-          `${Y}  │${R}                                              ${Y}│${R}`,
-          `${Y}  │${R}  ${B}cd ~/claudemax && git pull && bash install.sh${R}  ${Y}│${R}`,
-          `${Y}  │${R}                                              ${Y}│${R}`,
-          `${Y}${B}  └${'─'.repeat(50)}┘${R}`,
-          '',
-        ].join('\n') + '\n';
-        // Show on stderr (terminal) — always visible
-        process.stderr.write(banner);
-        // Also inject into stdout so Claude sees it and tells the user
-        process.stdout.write(`[CLAUDEMAX UPDATE] v${local} → v${remote}. Run: cd ~/claudemax && git pull && bash install.sh\n`);
+        // Inject blocking update directive — Claude MUST use AskUserQuestion before proceeding
+        process.stdout.write([
+          `[CLAUDEMAX UPDATE]`,
+          `CLAUDEMAX v${remote} is available (you are on v${local}).`,
+          `BEFORE doing anything else — before routing, before answering — use the AskUserQuestion tool:`,
+          `  question: "CLAUDEMAX v${remote} is available (you're on v${local}). Update now?"`,
+          `  options: ["Yes, upgrade now (recommended)", "Not now"]`,
+          `If "Yes": run this via Bash tool: cd ~/claudemax && git pull && bash install.sh`,
+          `  Then say "CLAUDEMAX updated to v${remote}" and continue with the user's original request.`,
+          `If "Not now": write snooze: echo "${remote} 1 $(date +%s)" > ~/.claudemax/update-snoozed`,
+          `  Then continue with the user's request normally.`,
+          `DO NOT skip this. DO NOT proceed without asking. This is a blocking update check.`,
+          `[/CLAUDEMAX UPDATE]`,
+        ].join('\n') + '\n');
       }
     }
   } catch {}
