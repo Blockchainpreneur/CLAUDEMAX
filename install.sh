@@ -365,10 +365,15 @@ servers = cfg.setdefault("mcpServers", {})
 
 # Core MCPs — always install (no tokens needed)
 defaults = {
-    "context7":         {"type":"stdio","command":"npx","args":["-y","@upstash/context7-mcp"],"env":{}},
-    "playwright":       {"type":"stdio","command":"npx","args":["-y","@playwright/mcp@latest"],"env":{}},
-    "shadcn":           {"type":"stdio","command":"npx","args":["-y","shadcn@canary","registry"],"env":{}},
-    "magicuidesign-mcp":{"type":"stdio","command":"npx","args":["-y","magicui-mcp"],"env":{}},
+    "context7":              {"type":"stdio","command":"npx","args":["-y","@upstash/context7-mcp"],"env":{}},
+    "playwright":            {"type":"stdio","command":"npx","args":["-y","@playwright/mcp@latest"],"env":{}},
+    "shadcn":                {"type":"stdio","command":"npx","args":["-y","shadcn@canary","registry"],"env":{}},
+    "magicuidesign-mcp":     {"type":"stdio","command":"npx","args":["-y","magicui-mcp"],"env":{}},
+    "sequential-thinking":   {"type":"stdio","command":"npx","args":["-y","@modelcontextprotocol/server-sequential-thinking"],"env":{}},
+    "firecrawl":             {"type":"stdio","command":"npx","args":["-y","firecrawl-mcp"],"env":{"FIRECRAWL_API_KEY":""}},
+    "sentry":                {"type":"sse","url":"https://mcp.sentry.dev/sse","env":{}},
+    "n8n":                   {"type":"stdio","command":"npx","args":["-y","n8n-mcp-server"],"env":{"N8N_BASE_URL":"","N8N_API_KEY":""}},
+    "figma":                 {"type":"stdio","command":"npx","args":["-y","figma-developer-mcp"],"env":{"FIGMA_ACCESS_TOKEN":""}},
 }
 
 added = []
@@ -400,8 +405,9 @@ print(", ".join(names))
 PYEOF2
 )
   ok "MCP servers active: $result"
-  info "GitHub/Supabase MCPs need tokens — add once:"
-  info "claude mcp add -s user github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github"
+  info "Some MCPs need API keys — add once via: claude mcp add -s user <name> -e KEY=xxx ..."
+  info "Tokens needed: GitHub, Supabase, Firecrawl, n8n, Figma"
+  info "Zero-config: context7, playwright, shadcn, magicui, sentry, sequential-thinking"
 }
 
 # ── 8. Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────

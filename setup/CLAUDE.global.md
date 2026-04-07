@@ -82,12 +82,21 @@ on top of gstack. Use them — don't default to generic approaches when a specia
 MCP exists.
 
 Available MCPs and when to use them:
+
+**Zero-config (always available):**
 - `mcp__playwright__*` — browser testing, E2E, screenshots, form automation
-- `mcp__supabase__*` — database, auth, storage, RLS policies, migrations
-- `mcp__github__*` — PRs, issues, releases, branch management
+- `mcp__context7__*` — latest framework/library docs (always check before coding)
 - `mcp__shadcn__*` — UI component registry, audit checklists
 - `mcp__magicuidesign-mcp__*` — animated and interactive UI components
-- `mcp__context7__*` — latest framework/library documentation (always check before coding)
+- `sequential-thinking` — structured step-by-step reasoning for complex decisions
+- `mcp__sentry__*` — error monitoring, stack traces, production issue triage
+
+**Token-required (add API key once):**
+- `mcp__supabase__*` — database, auth, storage, RLS policies, migrations
+- `mcp__github__*` — PRs, issues, releases, branch management
+- `mcp__firecrawl__*` — scrape any URL into clean markdown/structured data
+- `mcp__n8n__*` — build and manage automation workflows from natural language
+- `mcp__figma__*` — read Figma designs, generate matching code
 
 ## Agent Teams & Swarm
 

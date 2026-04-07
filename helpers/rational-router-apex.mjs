@@ -437,14 +437,18 @@ const TOOL_RECS = {
     'mcp__supabase__: backend, auth, storage, RLS policies',
     'mcp__shadcn__: UI component library (check registry first)',
     'mcp__context7__: latest framework docs before coding',
+    'mcp__figma__: read Figma designs if mockups exist',
+    'sequential-thinking: plan complex architecture step-by-step',
   ],
   'bug-fix': [
     'gstack: /investigate → fix → /review → /qa',
     'mcp__playwright__: reproduce the bug in a real browser',
+    'mcp__sentry__: pull error traces, stack traces, affected users',
     'mcp__context7__: check if it is a known framework issue',
   ],
   design: [
     'gstack: /design-consultation → build → /design-review → /qa → /ship',
+    'mcp__figma__: read Figma designs → generate matching code',
     'mcp__shadcn__: component library + audit checklist',
     'mcp__magicuidesign-mcp__: animated/interactive components',
     'mcp__playwright__: visual regression + responsive testing',
@@ -452,6 +456,7 @@ const TOOL_RECS = {
   'deploy-ship': [
     'gstack: /review → /qa → /cso → /ship → /land-and-deploy → /canary',
     'mcp__github__: PR creation, branch management, release',
+    'mcp__sentry__: verify no new errors after deploy',
   ],
   'e2e-testing': [
     'mcp__playwright__: all browser automation and testing',
@@ -460,6 +465,7 @@ const TOOL_RECS = {
   security: [
     'gstack: /cso for OWASP Top 10 + STRIDE audit',
     'mcp__supabase__: check RLS policies, auth config, exposed keys',
+    'sequential-thinking: systematic threat model analysis',
   ],
   performance: [
     'gstack: /benchmark for baseline measurement',
@@ -468,33 +474,48 @@ const TOOL_RECS = {
   'code-review': [
     'gstack: /review for comprehensive code review',
     'gstack: /cso for security implications',
+    'mcp__sentry__: check if reviewed code has prior error history',
   ],
   refactor: [
     'gstack: /review → /qa after refactoring',
     'mcp__playwright__: regression tests to verify nothing broke',
     'mcp__context7__: check framework best practices',
+    'sequential-thinking: plan refactoring steps to avoid breakage',
   ],
   investigate: [
     'gstack: /investigate for systematic root-cause debugging',
+    'mcp__sentry__: pull error traces, spans, breadcrumbs',
     'mcp__playwright__: reproduce in browser if UI-related',
     'mcp__context7__: check framework docs for known issues',
+    'sequential-thinking: structured reasoning for complex bugs',
   ],
   'web-browse': [
     'gstack: /browse for fast web research',
+    'mcp__firecrawl__: extract clean data from any URL',
   ],
   'brain-dump': [
     'gstack: extract decisions → prioritize → structure',
+    'sequential-thinking: organize thoughts step-by-step',
   ],
   strategy: [
     'gstack: /office-hours for strategic review',
-    'mcp__context7__: market/technology research',
+    'mcp__firecrawl__: scrape competitor pages, market data',
+    'mcp__context7__: technology landscape research',
   ],
   pitch: [
     'gstack: /office-hours for pitch structure and feedback',
+    'mcp__firecrawl__: pull market data, comparable companies',
   ],
   research: [
     'mcp__context7__: technical docs and framework references',
+    'mcp__firecrawl__: extract structured data from any source',
     'gstack: /browse for web research',
+  ],
+  // Automation tasks route to n8n
+  planning: [
+    'gstack: /office-hours → /plan-ceo-review → /plan-eng-review',
+    'sequential-thinking: structured planning with revision',
+    'mcp__n8n__: automate recurring workflows',
   ],
 };
 
