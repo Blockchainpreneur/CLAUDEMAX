@@ -126,22 +126,38 @@ Available MCPs and when to use them:
 ## Browser & Testing — Playwright CLI + agent-browser
 
 **NEVER use Playwright MCP (`mcp__playwright__*`). ALWAYS use Playwright CLI.**
+**ONE browser window. New TABS only. NEVER close tabs.**
+
+### Persistent browser (default for all browser work)
+
+Start the browser server (once per session, stays open):
+```bash
+node ~/claudemax/scripts/browser-server.mjs &
+```
+
+Open a new tab (never closes, never opens new windows):
+```bash
+node ~/claudemax/scripts/browser-tab.mjs <url>
+node ~/claudemax/scripts/browser-tab.mjs <url> --screenshot out.png
+```
+
+### Task routing
 
 | Task | Tool | Command |
 |------|------|---------|
-| E2E testing | Playwright CLI | `npx playwright test` |
+| Open a URL / browse | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url>` |
+| Screenshot a page | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url> --screenshot out.png` |
+| E2E test suite | Playwright CLI | `PW_ENDPOINT=$(cat /tmp/claudemax-browser.endpoint) npx playwright test` |
 | Write tests | Playwright CLI | write to `tests/*.spec.ts`, run with `npx playwright test` |
-| Screenshots | Playwright CLI | `npx playwright screenshot <url> screenshot.png` |
 | Long automations (10+ steps) | agent-browser | `agent-browser goto <url> && agent-browser snapshot` |
-| CI pipeline testing | agent-browser | fastest startup, lowest token cost |
 | Web research | gstack `/browse` | read-only, fast |
 
-**Rules (non-negotiable)**
-- NEVER use `mcp__playwright__*` tools — always use Playwright via Bash CLI commands
-- NEVER simulate browser interactions with curl/fetch
-- NEVER mock browser behavior in tests — use real browsers
+### Rules (non-negotiable)
+- NEVER use `mcp__playwright__*` tools — always Playwright CLI via Bash
+- NEVER open new browser windows — always new TABS in the existing window
+- NEVER close tabs — user closes them manually
+- ONE browser instance via `browser-server.mjs` — all tasks connect to it
 - E2E tests go in `tests/` with `playwright.config.ts` at root
-- Run with `npx playwright test` via the Bash tool
 - For 10+ step browser workflows, prefer `agent-browser` (5.7x more token-efficient)
 - `/browse` is for web research only
 
