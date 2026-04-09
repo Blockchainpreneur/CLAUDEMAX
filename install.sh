@@ -414,12 +414,17 @@ PYEOF2
 install_agent_browser() {
   if command -v agent-browser >/dev/null 2>&1; then
     ok "agent-browser already installed ($(agent-browser --version 2>/dev/null | head -1 || echo '?'))"
-    return
+  else
+    info "Installing agent-browser (Vercel, Rust-native, 5.7x more token-efficient)..."
+    npm i -g agent-browser 2>/dev/null && agent-browser install 2>/dev/null \
+      && ok "agent-browser installed" \
+      || warn "agent-browser install failed — optional, browser-server.mjs is the default"
   fi
-  info "Installing agent-browser (Vercel, Rust-native, 5.7x more token-efficient)..."
-  npm i -g agent-browser 2>/dev/null && agent-browser install 2>/dev/null \
-    && ok "agent-browser installed" \
-    || warn "agent-browser install failed — optional, Playwright CLI is the default"
+
+  # Ensure browser scripts are executable
+  chmod +x "$REPO_DIR/scripts/browser-server.mjs" "$REPO_DIR/scripts/browser-tab.mjs" 2>/dev/null
+  ok "Browser automation: browser-server.mjs + browser-tab.mjs (CDP on port 9222)"
+  info "First run syncs your Chrome profile — log in once, sessions persist forever"
 }
 
 # ── Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────

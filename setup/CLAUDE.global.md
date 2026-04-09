@@ -123,43 +123,81 @@ Available MCPs and when to use them:
 - CLAUDEMAX coordinates all multi-agent tasks
 - Use specialized strategy for clear role boundaries
 
-## Browser & Testing — Playwright CLI + agent-browser
+## Browser Automation — Native CLAUDEMAX Skill (CDP)
 
-**NEVER use Playwright MCP (`mcp__playwright__*`). ALWAYS use Playwright CLI.**
-**ONE browser window. New TABS only. NEVER close tabs.**
+**NEVER use Playwright MCP (`mcp__playwright__*`). NEVER open new browser windows.**
+**Use the user's Chrome session via CDP. One window. Tabs only. Never close tabs.**
 
-### Persistent browser (default for all browser work)
+### How it works
+1. `browser-server.mjs` copies the user's Chrome profile to `~/.claudemax/chrome-cdp-profile`
+2. Launches Chrome with `--remote-debugging-port=9222` — preserves all sessions/logins
+3. Playwright connects via `chromium.connectOverCDP('http://localhost:9222')`
+4. New tabs opened with `context.newPage()` — same window, never new windows
+5. Tabs are NEVER closed — user closes them manually
+6. Sessions persist across restarts (cookies saved in profile)
 
-Start the browser server (once per session, stays open):
+### Commands
+
 ```bash
-node ~/claudemax/scripts/browser-server.mjs &
+# Start browser (once per session — auto-syncs Chrome profile on first run)
+node ~/claudemax/scripts/browser-server.mjs
+
+# Open a URL as a new tab
+node ~/claudemax/scripts/browser-tab.mjs https://example.com
+
+# Open + screenshot
+node ~/claudemax/scripts/browser-tab.mjs https://example.com --screenshot out.png
+
+# List all open tabs
+node ~/claudemax/scripts/browser-tab.mjs --list
+
+# Read current page text
+node ~/claudemax/scripts/browser-tab.mjs --read
+
+# Stop server
+node ~/claudemax/scripts/browser-server.mjs --stop
+
+# Re-sync Chrome profile (get latest cookies/sessions)
+node ~/claudemax/scripts/browser-server.mjs --sync
 ```
 
-Open a new tab (never closes, never opens new windows):
+### Interacting with pages (Playwright via CDP)
+
+For clicking, typing, form filling, or any page interaction, connect via Playwright CDP in a Node script:
+
+```javascript
+const { chromium } = require('playwright');
+const browser = await chromium.connectOverCDP('http://localhost:9222');
+const context = browser.contexts()[0];
+const page = context.pages().find(p => p.url().includes('target-site'));
+// Now use standard Playwright: page.click(), page.keyboard.type(), page.screenshot(), etc.
+```
+
+Or use AppleScript for simple tab operations (just opening URLs):
 ```bash
-node ~/claudemax/scripts/browser-tab.mjs <url>
-node ~/claudemax/scripts/browser-tab.mjs <url> --screenshot out.png
+osascript -e 'tell application "Google Chrome" to tell window 1 to make new tab with properties {URL:"https://example.com"}'
 ```
 
 ### Task routing
 
 | Task | Tool | Command |
 |------|------|---------|
-| Open a URL / browse | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url>` |
-| Screenshot a page | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url> --screenshot out.png` |
-| E2E test suite | Playwright CLI | `PW_ENDPOINT=$(cat /tmp/claudemax-browser.endpoint) npx playwright test` |
-| Write tests | Playwright CLI | write to `tests/*.spec.ts`, run with `npx playwright test` |
-| Long automations (10+ steps) | agent-browser | `agent-browser goto <url> && agent-browser snapshot` |
+| Open URL / browse | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url>` |
+| Screenshot | browser-tab.mjs | `node ~/claudemax/scripts/browser-tab.mjs <url> --screenshot out.png` |
+| Click/type/interact | Playwright CDP | connect to `http://localhost:9222`, use page methods |
+| Simple tab open | AppleScript | `osascript -e 'tell app "Google Chrome" to tell window 1 to make new tab...'` |
+| E2E test suite | Playwright CLI | `npx playwright test` |
+| Long automations | agent-browser | `agent-browser goto <url> && agent-browser snapshot` |
 | Web research | gstack `/browse` | read-only, fast |
 
 ### Rules (non-negotiable)
-- NEVER use `mcp__playwright__*` tools — always Playwright CLI via Bash
-- NEVER open new browser windows — always new TABS in the existing window
+- NEVER use `mcp__playwright__*` MCP tools
+- NEVER open new browser windows — always tabs in the existing window
 - NEVER close tabs — user closes them manually
-- ONE browser instance via `browser-server.mjs` — all tasks connect to it
+- ALWAYS start `browser-server.mjs` before any browser work
+- ALWAYS connect via `chromium.connectOverCDP('http://localhost:9222')`
+- User's Chrome sessions are preserved — they are already logged in everywhere
 - E2E tests go in `tests/` with `playwright.config.ts` at root
-- For 10+ step browser workflows, prefer `agent-browser` (5.7x more token-efficient)
-- `/browse` is for web research only
 
 ## UI/Design (activate only when building UI)
 

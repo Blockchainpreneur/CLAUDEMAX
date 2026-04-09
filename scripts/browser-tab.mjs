@@ -1,66 +1,91 @@
 #!/usr/bin/env node
 /**
- * Open a new tab in the CLAUDEMAX persistent browser.
+ * CLAUDEMAX Browser Tab — open URLs, screenshot, interact
+ *
+ * Connects to the running browser server via CDP.
+ * Opens new tabs in the user's existing Chrome window.
+ * Tabs are NEVER closed.
  *
  * Usage:
- *   node scripts/browser-tab.mjs <url>                    # open URL in new tab
- *   node scripts/browser-tab.mjs <url> --screenshot out.png  # open + screenshot
- *
- * Connects to the running browser-server. If not running, starts it.
- * Tab is NEVER closed — stays open for the user.
+ *   node browser-tab.mjs <url>                       # open tab
+ *   node browser-tab.mjs <url> --screenshot file.png  # open + screenshot
+ *   node browser-tab.mjs --list                       # list all tabs
+ *   node browser-tab.mjs --read                       # read active page text
  */
 import { chromium } from 'playwright';
-import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { homedir } from 'os';
 
-const ENDPOINT_FILE = '/tmp/claudemax-browser.endpoint';
-const url = process.argv[2];
-const screenshotIdx = process.argv.indexOf('--screenshot');
-const screenshotPath = screenshotIdx > -1 ? process.argv[screenshotIdx + 1] : null;
+const CDP_PORT = 9222;
+const CDP_URL = `http://localhost:${CDP_PORT}`;
+
+// ── Ensure server is running ──────────────────────────────────
+function ensureServer() {
+  try {
+    execSync(`curl -sf ${CDP_URL}/json/version >/dev/null 2>&1`, { timeout: 2000 });
+  } catch {
+    console.log('Starting browser server...');
+    const server = join(homedir(), 'claudemax', 'scripts', 'browser-server.mjs');
+    execSync(`node "${server}"`, { stdio: 'inherit', timeout: 20000 });
+  }
+}
+
+// ── List tabs ─────────────────────────────────────────────────
+if (process.argv.includes('--list')) {
+  ensureServer();
+  try {
+    const res = execSync(`curl -sf ${CDP_URL}/json`, { encoding: 'utf8', timeout: 3000 });
+    const tabs = JSON.parse(res).filter(t => t.type === 'page' && !t.url.startsWith('chrome'));
+    for (const t of tabs) {
+      console.log(`${t.title?.slice(0, 50).padEnd(52)} ${t.url?.slice(0, 60)}`);
+    }
+    console.log(`\n${tabs.length} tab(s) open.`);
+  } catch (e) { console.error('Error:', e.message); }
+  process.exit(0);
+}
+
+// ── Read active page ──────────────────────────────────────────
+if (process.argv.includes('--read')) {
+  ensureServer();
+  const browser = await chromium.connectOverCDP(CDP_URL);
+  const pages = browser.contexts().flatMap(c => c.pages());
+  const page = pages.find(p => !p.url().startsWith('chrome')) || pages[0];
+  if (page) {
+    const text = await page.evaluate(() => document.body?.innerText?.slice(0, 3000) || '');
+    console.log(text);
+  }
+  process.exit(0);
+}
+
+// ── Open tab ──────────────────────────────────────────────────
+const url = process.argv.find(a => a.startsWith('http'));
+const ssIdx = process.argv.indexOf('--screenshot');
+const ssPath = ssIdx > -1 ? process.argv[ssIdx + 1] : null;
 
 if (!url) {
-  console.error('Usage: node browser-tab.mjs <url> [--screenshot file.png]');
+  console.error('Usage: node browser-tab.mjs <url> [--screenshot file.png] [--list] [--read]');
   process.exit(1);
 }
 
-// Start server if not running
-if (!existsSync(ENDPOINT_FILE)) {
-  const serverScript = join(homedir(), 'claudemax', 'scripts', 'browser-server.mjs');
-  console.log('Starting browser server...');
-  execSync(`node "${serverScript}" &`, { stdio: 'ignore', shell: true });
-  // Wait for endpoint file
-  for (let i = 0; i < 10; i++) {
-    await new Promise(r => setTimeout(r, 500));
-    if (existsSync(ENDPOINT_FILE)) break;
-  }
-  if (!existsSync(ENDPOINT_FILE)) {
-    console.error('Failed to start browser server.');
-    process.exit(1);
-  }
-}
-
-const wsEndpoint = readFileSync(ENDPOINT_FILE, 'utf8').trim();
+ensureServer();
 
 try {
-  const browser = await chromium.connect(wsEndpoint);
+  const browser = await chromium.connectOverCDP(CDP_URL);
   const contexts = browser.contexts();
-  // Use existing context or create one
   const context = contexts.length > 0 ? contexts[0] : await browser.newContext();
-  // Always open a new tab (page) — never reuse, never close
+
   const page = await context.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   console.log(`Tab opened: ${url}`);
   console.log(`Title: ${await page.title()}`);
 
-  if (screenshotPath) {
-    await page.screenshot({ path: screenshotPath, fullPage: false });
-    console.log(`Screenshot: ${screenshotPath}`);
+  if (ssPath) {
+    await page.screenshot({ path: ssPath, fullPage: false });
+    console.log(`Screenshot: ${ssPath}`);
   }
-
-  // DO NOT close the page — it stays open for the user
+  // NEVER close the page
 } catch (err) {
   console.error(`Error: ${err.message}`);
   process.exit(1);
