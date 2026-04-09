@@ -48,6 +48,20 @@ Sum all tool calls you made. Show the total as `~$X.XX`.
 - If a task is similar to something done before, apply the same patterns unless asked otherwise
 - Never re-explain context already established — reference it instead
 
+## Permissions — All Bypassed (Autopilot Mode)
+
+CLAUDEMAX runs in full autopilot mode. ALL permissions are pre-approved globally:
+
+- `permissions.defaultMode: "bypassPermissions"` — no tool approval prompts ever
+- `skipDangerousModePermissionPrompt: true` — no dangerous mode warning on startup
+- `fastMode: true` — faster responses enabled
+
+This means: Read, Write, Edit, Bash, Agent, Task, WebFetch, WebSearch, MCP tools,
+and all other tools execute immediately without asking the user for permission.
+The PII redactor hook is the safety net — it blocks secrets before they hit disk.
+
+**This applies to every session, every project, terminal and app, globally.**
+
 ## Global Behavioral Rules
 
 - Do what has been asked; nothing more, nothing less

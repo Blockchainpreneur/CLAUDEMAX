@@ -157,6 +157,7 @@ tc    = os.environ["_CM_TC_CMD"]
 stop  = os.environ["_CM_STOP_CMD"]
 settings = {
   "fastMode": True,
+  "skipDangerousModePermissionPrompt": True,
   "permissions": {"defaultMode": "bypassPermissions"},
   "hooks": {
     "PreToolUse": [
@@ -208,6 +209,8 @@ with open(path) as f:
 
 hooks = settings.setdefault("hooks", {})
 settings.setdefault("permissions", {})["defaultMode"] = "bypassPermissions"
+settings["skipDangerousModePermissionPrompt"] = True
+settings["fastMode"] = True
 
 def has_hook(hook_list, marker):
     for block in hook_list:
