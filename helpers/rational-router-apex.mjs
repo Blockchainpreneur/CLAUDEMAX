@@ -162,7 +162,7 @@ const RULES = [
       /\b(write.{0,10}test|run.{0,10}test|add.{0,10}test|spec\.ts|\.spec\.)\b/i,
       /\b(click.{0,20}button|fill.{0,20}form|screenshot|visual check)\b/i,
     ],
-    skill: 'playwright → mcp__playwright__* → npx playwright test',
+    skill: 'npx playwright test → agent-browser for long flows',
     label: 'Testing with Playwright',
     agents: ['tester', 'coder', 'reviewer'],
   },
@@ -433,7 +433,7 @@ const ENRICHMENTS = {
 const TOOL_RECS = {
   'new-feature': [
     'gstack: /office-hours → /plan-eng-review → build → /review → /qa → /cso → /ship',
-    'mcp__playwright__: E2E tests for all user flows',
+    'playwright CLI: npx playwright test for E2E tests',
     'mcp__supabase__: backend, auth, storage, RLS policies',
     'mcp__shadcn__: UI component library (check registry first)',
     'mcp__context7__: latest framework docs before coding',
@@ -442,7 +442,7 @@ const TOOL_RECS = {
   ],
   'bug-fix': [
     'gstack: /investigate → fix → /review → /qa',
-    'mcp__playwright__: reproduce the bug in a real browser',
+    'playwright CLI: npx playwright test to reproduce in real browser',
     'mcp__sentry__: pull error traces, stack traces, affected users',
     'mcp__context7__: check if it is a known framework issue',
   ],
@@ -451,7 +451,7 @@ const TOOL_RECS = {
     'mcp__figma__: read Figma designs → generate matching code',
     'mcp__shadcn__: component library + audit checklist',
     'mcp__magicuidesign-mcp__: animated/interactive components',
-    'mcp__playwright__: visual regression + responsive testing',
+    'playwright CLI: npx playwright test for visual regression + responsive',
   ],
   'deploy-ship': [
     'gstack: /review → /qa → /cso → /ship → /land-and-deploy → /canary',
@@ -459,7 +459,8 @@ const TOOL_RECS = {
     'mcp__sentry__: verify no new errors after deploy',
   ],
   'e2e-testing': [
-    'mcp__playwright__: all browser automation and testing',
+    'playwright CLI: npx playwright test for all browser testing',
+    'agent-browser: for long automation chains (10+ steps, 5.7x token savings)',
     'gstack: /qa for full QA workflow with bug fixes',
   ],
   security: [
@@ -469,7 +470,7 @@ const TOOL_RECS = {
   ],
   performance: [
     'gstack: /benchmark for baseline measurement',
-    'mcp__playwright__: Core Web Vitals + page load profiling',
+    'playwright CLI: npx playwright test for Core Web Vitals + profiling',
   ],
   'code-review': [
     'gstack: /review for comprehensive code review',
@@ -478,19 +479,20 @@ const TOOL_RECS = {
   ],
   refactor: [
     'gstack: /review → /qa after refactoring',
-    'mcp__playwright__: regression tests to verify nothing broke',
+    'playwright CLI: npx playwright test for regression verification',
     'mcp__context7__: check framework best practices',
     'sequential-thinking: plan refactoring steps to avoid breakage',
   ],
   investigate: [
     'gstack: /investigate for systematic root-cause debugging',
     'mcp__sentry__: pull error traces, spans, breadcrumbs',
-    'mcp__playwright__: reproduce in browser if UI-related',
+    'playwright CLI: npx playwright test to reproduce if UI-related',
     'mcp__context7__: check framework docs for known issues',
     'sequential-thinking: structured reasoning for complex bugs',
   ],
   'web-browse': [
     'gstack: /browse for fast web research',
+    'agent-browser: for interactive browsing with low token cost',
     'mcp__firecrawl__: extract clean data from any URL',
   ],
   'brain-dump': [

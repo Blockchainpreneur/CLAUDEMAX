@@ -410,7 +410,19 @@ PYEOF2
   info "Zero-config: context7, playwright, shadcn, magicui, sentry, sequential-thinking"
 }
 
-# ── 8. Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────
+# ── agent-browser — Rust-native browser CLI for AI agents ─────────────────────
+install_agent_browser() {
+  if command -v agent-browser >/dev/null 2>&1; then
+    ok "agent-browser already installed ($(agent-browser --version 2>/dev/null | head -1 || echo '?'))"
+    return
+  fi
+  info "Installing agent-browser (Vercel, Rust-native, 5.7x more token-efficient)..."
+  npm i -g agent-browser 2>/dev/null && agent-browser install 2>/dev/null \
+    && ok "agent-browser installed" \
+    || warn "agent-browser install failed — optional, Playwright CLI is the default"
+}
+
+# ── Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────
 install_alias() {
   local ALIAS_LINE='alias cm="cd ~/claudemax && claude"'
   local ALIAS_COMMENT="# CLAUDEMAX — open Claude Code from ~/claudemax"
@@ -560,10 +572,13 @@ main() {
   step "8/10 Ruflo (enterprise swarm orchestration)"
   install_ruflo
 
-  step "9/10 MCP servers"
+  step "9/11 MCP servers"
   install_mcp
 
-  step "10/10 Shell alias (cm)"
+  step "10/11 agent-browser (token-efficient browser automation)"
+  install_agent_browser
+
+  step "11/11 Shell alias (cm)"
   install_alias
 
   step "✓    Smoke tests"

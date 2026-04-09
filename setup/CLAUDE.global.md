@@ -101,7 +101,8 @@ MCP exists.
 Available MCPs and when to use them:
 
 **Zero-config (always available):**
-- `mcp__playwright__*` — browser testing, E2E, screenshots, form automation
+- `npx playwright test` / `npx playwright` — Playwright CLI for ALL browser testing (NEVER use Playwright MCP)
+- `agent-browser` — Rust-native CLI for long automations (5.7x more token-efficient than Playwright)
 - `mcp__context7__*` — latest framework/library docs (always check before coding)
 - `mcp__shadcn__*` — UI component registry, audit checklists
 - `mcp__magicuidesign-mcp__*` — animated and interactive UI components
@@ -122,30 +123,34 @@ Available MCPs and when to use them:
 - CLAUDEMAX coordinates all multi-agent tasks
 - Use specialized strategy for clear role boundaries
 
-## Browser & Testing — Default: Playwright
+## Browser & Testing — Playwright CLI + agent-browser
 
-Playwright is the **default** for all browser activity and app testing, globally.
+**NEVER use Playwright MCP (`mcp__playwright__*`). ALWAYS use Playwright CLI.**
 
-| Task | Tool |
-|------|------|
-| App testing / E2E | `mcp__playwright__*` tools → `npx playwright test` |
-| Browser automation (click, fill, screenshot) | `mcp__playwright__*` tools directly |
-| Visual checks / screenshots | `mcp__playwright__browser_take_screenshot` |
-| Web research / read content | gstack `/browse` (faster, read-only) |
+| Task | Tool | Command |
+|------|------|---------|
+| E2E testing | Playwright CLI | `npx playwright test` |
+| Write tests | Playwright CLI | write to `tests/*.spec.ts`, run with `npx playwright test` |
+| Screenshots | Playwright CLI | `npx playwright screenshot <url> screenshot.png` |
+| Long automations (10+ steps) | agent-browser | `agent-browser goto <url> && agent-browser snapshot` |
+| CI pipeline testing | agent-browser | fastest startup, lowest token cost |
+| Web research | gstack `/browse` | read-only, fast |
 
 **Rules (non-negotiable)**
-- NEVER simulate browser interactions with curl/fetch — use Playwright
-- NEVER mock browser behavior in tests — use real Playwright browsers
-- E2E tests always go in `tests/` with `playwright.config.ts` at root
-- Run with `npx playwright test`, never a custom test runner for browser tests
-- `/browse` is for web research only — Playwright is for automation and testing
+- NEVER use `mcp__playwright__*` tools — always use Playwright via Bash CLI commands
+- NEVER simulate browser interactions with curl/fetch
+- NEVER mock browser behavior in tests — use real browsers
+- E2E tests go in `tests/` with `playwright.config.ts` at root
+- Run with `npx playwright test` via the Bash tool
+- For 10+ step browser workflows, prefer `agent-browser` (5.7x more token-efficient)
+- `/browse` is for web research only
 
 ## UI/Design (activate only when building UI)
 
 Full specs: `~/.claude/design-system.md` · `~/.claude/animation-system.md`
 
 **Stack**: Tailwind v4 + shadcn/ui (zinc) + Radix UI + Inter + lucide-react + Motion.dev + GSAP + Lenis
-**MCPs**: Magic UI (`magicuidesign-mcp`) · shadcn (`shadcn`) · visual QA (`playwright`)
+**MCPs**: Magic UI (`magicuidesign-mcp`) · shadcn (`shadcn`) · visual QA (`npx playwright test`)
 **Rules**: CSS tokens always · zinc scale · 4px grid · dark mode from day one · multi-layer shadows
 **References**: linear.app · vercel.com/dashboard · stripe.com · mercury.com
 
@@ -195,7 +200,7 @@ gstack is installed at `~/.claude/skills/gstack`. Use these skills for all dev w
 | Security concern | `/cso` first, before anything else |
 | Deploy | `/review` → `/qa` → `/cso` → `/ship` → `/land-and-deploy` → `/canary` |
 | Web browsing (research) | `/browse [url]` — ALWAYS, never simulate |
-| App testing / E2E / browser automation | Playwright MCP tools — ALWAYS |
+| App testing / E2E / browser automation | Playwright CLI (`npx playwright test`) — ALWAYS |
 | Large changes | `/autoplan` — triggers full pipeline automatically |
 | Destructive ops | `/careful` first |
 
