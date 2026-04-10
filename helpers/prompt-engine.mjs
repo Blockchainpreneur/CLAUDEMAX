@@ -99,13 +99,33 @@ try {
   }
 } catch {}
 
-// ── 2. Prompt Structuring (NotebookLM-style) ───────────────────
-// Instead of calling NotebookLM API (requires auth), we apply the
-// same structuring principles locally:
-//   - Break vague prompts into specific sub-tasks
-//   - Add missing context from memory
-//   - Force precision to prevent lazy Claude responses
-//   - Add verification requirements
+// ── 2. NotebookLM delegation — offload heavy reasoning ──────────
+// Research/synthesis tasks get pre-processed through NotebookLM bridge
+// to save Claude tokens. Claude receives compressed output only.
+try {
+  const isResearch = /\b(research|find|search|compare|analyze|what is|how does|competitive|market|trends)\b/i.test(prompt);
+  const isDocAnalysis = /\b(summarize|analyze|read this|review this doc|what does this say)\b/i.test(prompt);
+
+  if (isResearch || isDocAnalysis) {
+    const bridgeScript = join(homedir(), 'claudemax', 'helpers', 'notebooklm-bridge.mjs');
+    if (existsSync(bridgeScript)) {
+      // Check NLM cache first
+      const cacheKey = prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 40);
+      const cacheFile = join(homedir(), '.claudemax', 'nlm-cache', `${cacheKey}.txt`);
+      if (existsSync(cacheFile)) {
+        const cached = readFileSync(cacheFile, 'utf8');
+        if (cached.length > 50) {
+          memoryContext += '\n[NotebookLM cached]: ' + cached.slice(0, 500);
+        }
+      }
+    }
+  }
+} catch {}
+
+// ── 3. Prompt Structuring — anti-laziness + quality gates ───────
+// Breaks vague prompts into specific sub-tasks
+// Adds missing context from memory
+// Forces precision to prevent lazy Claude responses
 
 let structuredPrompt = prompt;
 
