@@ -1,37 +1,30 @@
 #!/usr/bin/env node
 /**
- * CLAUDEMAX Prompt Engine — NotebookLM + LightRAG Integration
+ * CLAUDEMAX Prompt Engine — FULLY AUTOMATED
  *
- * Called by Ripple before Claude processes a prompt.
- * Two jobs:
- *   1. Send prompt to NotebookLM for structuring + research enrichment
- *   2. Query LightRAG for relevant past decisions/memory
+ * Runs on every prompt via Ripple. Three auto-actions:
+ * 1. Retrieves relevant memory (LightRAG-style search)
+ * 2. Auto-calls NotebookLM for research/synthesis prompts (background, cached)
+ * 3. Structures prompt with anti-laziness + quality gates
  *
- * Returns enriched prompt + memory context via stdout.
- *
- * Usage:
- *   echo "fix the login bug" | node prompt-engine.mjs
- *   node prompt-engine.mjs "fix the login bug"
- *
- * Architecture:
- *   User prompt → prompt-engine.mjs
- *     → NotebookLM: structure, research, anti-laziness enrichment
- *     → LightRAG: retrieve relevant past decisions
- *     → stdout: [CLAUDEMAX ENRICHED] block for Claude
+ * All non-blocking. Max 3s total. Cached results are instant.
  */
-import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { execSync, spawn } from 'child_process';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
 const HOME = homedir();
 const MEMORY_DIR = join(HOME, '.claudemax', 'memory');
 const LEARNINGS_DIR = join(HOME, '.claudemax', 'learnings');
-const CACHE_DIR = join(HOME, '.claudemax', 'prompt-cache');
+const NLM_CACHE = join(HOME, '.claudemax', 'nlm-cache');
+const NLM_BIN = '/Library/Frameworks/Python.framework/Versions/3.12/bin/notebooklm';
+const NLM_BRIDGE = join(HOME, 'claudemax', 'helpers', 'notebooklm-bridge.mjs');
+const NB_ID_FILE = join(HOME, '.claudemax', 'nlm-notebook-id');
 
 mkdirSync(MEMORY_DIR, { recursive: true });
 mkdirSync(LEARNINGS_DIR, { recursive: true });
-mkdirSync(CACHE_DIR, { recursive: true });
+mkdirSync(NLM_CACHE, { recursive: true });
 
 // ── Read prompt ─────────────────────────────────────────────────
 let prompt = '';
@@ -49,130 +42,144 @@ try {
 if (!prompt) prompt = process.argv[2] || '';
 if (!prompt || prompt.length < 5) process.exit(0);
 
-// ── 1. LightRAG: Retrieve relevant past context ────────────────
+const promptLower = prompt.toLowerCase();
+
+// ── 1. AUTO: Memory retrieval ───────────────────────────────────
 let memoryContext = '';
 try {
-  // Search memory files for relevant entries
   const memFiles = existsSync(MEMORY_DIR)
-    ? readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json')).sort().slice(-20)
+    ? readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_')).sort().slice(-20)
     : [];
 
-  const relevantMemories = [];
-  const promptLower = prompt.toLowerCase();
-
-  for (const f of memFiles) {
+  // Check compressed summary first (most efficient)
+  const summaryFile = join(MEMORY_DIR, '_compressed-summary.json');
+  if (existsSync(summaryFile)) {
     try {
-      const data = JSON.parse(readFileSync(join(MEMORY_DIR, f), 'utf8'));
-      const content = JSON.stringify(data).toLowerCase();
-      // Simple relevance: check if any word from the prompt appears in the memory
-      const words = promptLower.split(/\s+/).filter(w => w.length > 3);
-      const matches = words.filter(w => content.includes(w)).length;
-      if (matches > 0) {
-        relevantMemories.push({ ...data, relevance: matches / words.length });
-      }
+      const summary = JSON.parse(readFileSync(summaryFile, 'utf8'));
+      if (summary.content) memoryContext = '[Session briefing]: ' + summary.content.slice(0, 300);
     } catch {}
   }
 
-  // Sort by relevance and take top 3
-  relevantMemories.sort((a, b) => b.relevance - a.relevance);
-  if (relevantMemories.length > 0) {
-    memoryContext = relevantMemories.slice(0, 3)
-      .map(m => `[${m.ts?.slice(0, 10) || '?'}] ${m.type || 'context'}: ${m.content || m.summary || ''}`)
-      .join('\n');
+  // Then search for relevant entries
+  const words = promptLower.split(/\s+/).filter(w => w.length > 3);
+  if (words.length > 0) {
+    const relevant = [];
+    for (const f of memFiles.slice(-10)) {
+      try {
+        const data = JSON.parse(readFileSync(join(MEMORY_DIR, f), 'utf8'));
+        const content = JSON.stringify(data).toLowerCase();
+        const matches = words.filter(w => content.includes(w)).length;
+        if (matches >= 2) relevant.push({ ...data, relevance: matches });
+      } catch {}
+    }
+    relevant.sort((a, b) => b.relevance - a.relevance);
+    if (relevant.length > 0) {
+      memoryContext += '\n' + relevant.slice(0, 2)
+        .map(m => `[${m.ts?.slice(0, 10) || '?'}] ${m.content || m.summary || ''}`)
+        .join('\n');
+    }
   }
 
-  // Also check learnings
-  const learnFiles = existsSync(LEARNINGS_DIR)
-    ? readdirSync(LEARNINGS_DIR).filter(f => f.endsWith('.json'))
-    : [];
-
+  // Check learnings for matching strategies
+  const learnFiles = existsSync(LEARNINGS_DIR) ? readdirSync(LEARNINGS_DIR).filter(f => f.endsWith('.json')) : [];
   for (const f of learnFiles) {
     try {
       const data = JSON.parse(readFileSync(join(LEARNINGS_DIR, f), 'utf8'));
       if (data.type === 'success' && data.strategy) {
-        const taskMatch = promptLower.includes(data.task) || promptLower.includes(data.tool);
-        if (taskMatch) {
-          memoryContext += `\nLearned strategy: ${data.strategy} (confidence: ${data.confidence}/10)`;
+        if (promptLower.includes(data.task) || promptLower.includes(data.tool)) {
+          memoryContext += `\n[Learned]: ${data.strategy} (confidence: ${data.confidence}/10)`;
         }
       }
     } catch {}
   }
 } catch {}
 
-// ── 2. NotebookLM delegation — offload heavy reasoning ──────────
-// Research/synthesis tasks get pre-processed through NotebookLM bridge
-// to save Claude tokens. Claude receives compressed output only.
+// ── 2. AUTO: NotebookLM delegation ──────────────────────────────
+// Research/synthesis/analysis prompts auto-call NLM in background
+// Results cached for 1hr. Cached results injected immediately.
+let nlmResult = '';
 try {
-  const isResearch = /\b(research|find|search|compare|analyze|what is|how does|competitive|market|trends)\b/i.test(prompt);
-  const isDocAnalysis = /\b(summarize|analyze|read this|review this doc|what does this say)\b/i.test(prompt);
+  const isResearch = /\b(research|find out|search for|compare|analyze|what is|how does|competitive|market|trends|best practices)\b/i.test(prompt);
+  const isDocAnalysis = /\b(summarize|analyze this|review this|what does this say|read this)\b/i.test(prompt);
+  const isSynthesis = /\b(explain|why|how to|what are the|give me|list the|describe)\b/i.test(prompt);
 
-  if (isResearch || isDocAnalysis) {
-    const bridgeScript = join(homedir(), 'claudemax', 'helpers', 'notebooklm-bridge.mjs');
-    if (existsSync(bridgeScript)) {
-      // Check NLM cache first
-      const cacheKey = prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 40);
-      const cacheFile = join(homedir(), '.claudemax', 'nlm-cache', `${cacheKey}.txt`);
-      if (existsSync(cacheFile)) {
-        const cached = readFileSync(cacheFile, 'utf8');
-        if (cached.length > 50) {
-          memoryContext += '\n[NotebookLM cached]: ' + cached.slice(0, 500);
-        }
+  if (isResearch || isDocAnalysis || isSynthesis) {
+    const cacheKey = prompt.replace(/[^a-z0-9]/gi, '-').slice(0, 50);
+    const cacheFile = join(NLM_CACHE, `${cacheKey}.txt`);
+
+    // Check cache (1hr TTL)
+    if (existsSync(cacheFile)) {
+      const age = Date.now() - statSync(cacheFile).mtimeMs;
+      if (age < 3600000) {
+        nlmResult = readFileSync(cacheFile, 'utf8').trim();
       }
+    }
+
+    // If no cache hit, spawn NLM in background (non-blocking)
+    if (!nlmResult && existsSync(NB_ID_FILE)) {
+      const nbId = readFileSync(NB_ID_FILE, 'utf8').trim().slice(0, 8);
+      // Fire and forget — result will be cached for next time
+      try {
+        const child = spawn(NLM_BIN, ['ask', prompt.slice(0, 200)], {
+          detached: true,
+          stdio: ['ignore', 'pipe', 'ignore'],
+          env: { ...process.env, PATH: `/Library/Frameworks/Python.framework/Versions/3.12/bin:${process.env.PATH}` },
+          timeout: 25000,
+        });
+        // Capture output and cache it
+        let output = '';
+        child.stdout.on('data', d => { output += d.toString(); });
+        child.on('close', () => {
+          const answer = output.split('Answer:').pop()?.trim() || output.trim();
+          if (answer.length > 20) {
+            try { writeFileSync(cacheFile, answer); } catch {}
+          }
+        });
+        child.unref();
+      } catch {}
+    }
+
+    // If we have cached result, inject it
+    if (nlmResult) {
+      memoryContext += `\n[NotebookLM]: ${nlmResult.slice(0, 500)}`;
     }
   }
 } catch {}
 
-// ── 3. Prompt Structuring — anti-laziness + quality gates ───────
-// Breaks vague prompts into specific sub-tasks
-// Adds missing context from memory
-// Forces precision to prevent lazy Claude responses
-
+// ── 3. AUTO: Prompt structuring ─────────────────────────────────
 let structuredPrompt = prompt;
-
 try {
-  // Detect vague/lazy-prone prompts and add structure
-  const vaguePatterns = [
-    { test: /^(fix|update|change|modify)\s/i, add: 'Specify: what exactly is broken? Read the relevant code first. Show the root cause before patching.' },
-    { test: /^(build|create|make|add)\s/i, add: 'Requirements: include input validation, error states, loading states, edge cases. Write tests.' },
-    { test: /^(check|review|look at)\s/i, add: 'Be thorough: read every file involved. List specific findings with file:line references.' },
-    { test: /^(deploy|ship|push)\s/i, add: 'Pre-deploy: run tests, review diff, check for secrets, verify build. Post-deploy: canary check.' },
-    { test: /^(test|qa|verify)\s/i, add: 'Test systematically: happy path, error paths, edge cases, mobile. Provide evidence for each.' },
-    { test: /^(research|find|search)\s/i, add: 'Use multiple sources. Verify claims. Note conflicting evidence. Cite sources.' },
+  const patterns = [
+    { test: /^(fix|update|change|modify)\s/i, add: 'Read the code first. Show root cause before patching. Write regression test.' },
+    { test: /^(build|create|make|add)\s/i, add: 'Include: input validation, error states, loading states, edge cases, tests.' },
+    { test: /^(check|review|look at)\s/i, add: 'Read every file involved. List findings with file:line references.' },
+    { test: /^(deploy|ship|push)\s/i, add: 'Pre-deploy: tests, diff review, secrets check. Post-deploy: canary.' },
+    { test: /^(test|qa|verify)\s/i, add: 'Test: happy path, error paths, edge cases, mobile. Show evidence.' },
+    { test: /^(research|find|search)\s/i, add: 'Multiple sources. Verify claims. Note conflicts. Cite sources.' },
+    { test: /^(design|ui|ux)\s/i, add: 'Mobile-first. Dark mode. Loading/empty/error states. WCAG 2.1.' },
   ];
 
-  for (const p of vaguePatterns) {
+  for (const p of patterns) {
     if (p.test.test(prompt)) {
-      structuredPrompt += `\n\n[PROMPT ENGINE — anti-laziness]: ${p.add}`;
+      structuredPrompt += `\n[anti-laziness]: ${p.add}`;
       break;
     }
   }
 
-  // Add memory context if relevant
-  if (memoryContext) {
-    structuredPrompt += `\n\n[PROMPT ENGINE — past context]:\n${memoryContext}`;
-  }
-
-  // Add precision requirements for all prompts
-  structuredPrompt += '\n\n[PROMPT ENGINE — quality gate]: Do the COMPLETE thing. No shortcuts. No "this should work." Verify every claim. Show evidence.';
-
+  if (memoryContext) structuredPrompt += `\n[past context]:\n${memoryContext}`;
+  structuredPrompt += '\n[quality]: Do the COMPLETE thing. Verify claims. Show evidence.';
 } catch {}
 
-// ── 3. Save to memory for future retrieval ──────────────────────
+// ── 4. AUTO: Save prompt to memory ──────────────────────────────
 try {
   const ts = new Date().toISOString();
-  const entry = {
-    ts,
-    type: 'prompt',
-    content: prompt.slice(0, 500),
-    cwd: process.cwd(),
-  };
   writeFileSync(
     join(MEMORY_DIR, `${ts.slice(0, 10)}-${ts.slice(11, 19).replace(/:/g, '')}-prompt.json`),
-    JSON.stringify(entry, null, 2)
+    JSON.stringify({ ts, type: 'prompt', content: prompt.slice(0, 300), cwd: process.cwd() })
   );
 } catch {}
 
-// ── Output enriched prompt ──────────────────────────────────────
+// ── Output ──────────────────────────────────────────────────────
 if (structuredPrompt !== prompt) {
   process.stdout.write(`[CLAUDEMAX PROMPT-ENGINE]\n${structuredPrompt}\n[/CLAUDEMAX PROMPT-ENGINE]\n`);
 }

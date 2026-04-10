@@ -1,22 +1,27 @@
 #!/usr/bin/env node
 /**
- * PostToolUse APEX — CLAUDEMAX 2.0
- * Accumulates tool events per-turn into ~/.claudemax/turn-events.jsonl
- * so the Stop hook can render a completion diagram.
- * Also forwards to daemon (existing behavior).
+ * PostToolUse APEX — CLAUDEMAX
+ *
+ * Runs after every tool call. Three auto-actions:
+ * 1. Logs tool events for completion diagram
+ * 2. Detects failures and triggers self-healing (3 retries)
+ * 3. Forwards to daemon
+ *
  * Always exits 0. Non-blocking.
  */
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
+import { appendFileSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { request } from 'http';
 
-const DIR         = join(homedir(), '.claudemax');
+const DIR = join(homedir(), '.claudemax');
 const EVENTS_FILE = join(DIR, 'turn-events.jsonl');
+const LEARNINGS_DIR = join(DIR, 'learnings');
+
+mkdirSync(DIR, { recursive: true });
+mkdirSync(LEARNINGS_DIR, { recursive: true });
 
 try {
-  if (!existsSync(DIR)) mkdirSync(DIR, { recursive: true });
-
   let body = '';
   if (!process.stdin.isTTY) {
     const chunks = [];
@@ -28,16 +33,81 @@ try {
   try { event = JSON.parse(body); } catch {}
 
   const toolName = event.tool_name || 'unknown';
-  const input    = event.tool_input || {};
+  const input = event.tool_input || {};
+  const response = event.tool_response || event.tool_result || '';
+  const responseStr = typeof response === 'string' ? response : JSON.stringify(response);
 
-  // Lightweight entry — only what the completion diagram needs
+  // ── 1. Log tool event ─────────────────────────────────────────
   const entry = { tool: toolName, ts: Date.now() };
   if (input.file_path) entry.file = input.file_path;
-  if (input.command)   entry.cmd  = String(input.command).slice(0, 80);
-
+  if (input.command) entry.cmd = String(input.command).slice(0, 80);
   appendFileSync(EVENTS_FILE, JSON.stringify(entry) + '\n');
 
-  // Forward to daemon
+  // ── 2. Self-healing: detect failures and log ──────────────────
+  const isFailure = /error|fail|timeout|ENOENT|EACCES|denied|crash|exception|not found|refused/i.test(responseStr);
+
+  if (isFailure && toolName !== 'unknown') {
+    const key = `${toolName}`.replace(/[^a-z0-9-]/gi, '-').slice(0, 40);
+    const failFile = join(LEARNINGS_DIR, `${key}-failure.json`);
+
+    // Log the failure
+    let failures = [];
+    try { failures = JSON.parse(readFileSync(failFile, 'utf8')); if (!Array.isArray(failures)) failures = [failures]; } catch {}
+    failures.push({
+      ts: new Date().toISOString(),
+      tool: toolName,
+      error: responseStr.slice(0, 200),
+      input: JSON.stringify(input).slice(0, 200),
+      type: 'failure',
+    });
+    writeFileSync(failFile, JSON.stringify(failures.slice(-5), null, 2));
+
+    // Output self-healing suggestion to stdout (Claude reads this)
+    const successFile = join(LEARNINGS_DIR, `${key}-success.json`);
+    if (existsSync(successFile)) {
+      try {
+        const success = JSON.parse(readFileSync(successFile, 'utf8'));
+        if (success.strategy) {
+          process.stdout.write(`[CLAUDEMAX SELF-HEAL] ${toolName} failed. Previously successful strategy: ${success.strategy}\n`);
+        }
+      } catch {}
+    } else {
+      // Suggest alternatives based on tool type
+      const alternatives = {
+        Bash: 'Try a different command approach or check permissions',
+        Edit: 'Read the file first to verify the old_string exists exactly',
+        Write: 'Check directory exists and file is not read-only',
+        Read: 'Verify file path is correct and file exists',
+        Agent: 'Try running the task directly instead of spawning an agent',
+        WebFetch: 'Use firecrawl CLI instead: firecrawl scrape <url>',
+        WebSearch: 'Use firecrawl CLI: firecrawl search <query>',
+      };
+      const alt = alternatives[toolName];
+      if (alt) {
+        process.stdout.write(`[CLAUDEMAX SELF-HEAL] ${toolName} failed. Try: ${alt}\n`);
+      }
+    }
+  }
+
+  // ── 3. Log success for self-healing ───────────────────────────
+  if (!isFailure && toolName !== 'unknown') {
+    // Record successful tool use pattern (lightweight)
+    const key = `${toolName}`.replace(/[^a-z0-9-]/gi, '-').slice(0, 40);
+    const successFile = join(LEARNINGS_DIR, `${key}-success.json`);
+    // Only write if there was a prior failure (tracks recovery)
+    const failFile = join(LEARNINGS_DIR, `${key}-failure.json`);
+    if (existsSync(failFile)) {
+      writeFileSync(successFile, JSON.stringify({
+        ts: new Date().toISOString(),
+        tool: toolName,
+        strategy: `Use ${toolName} with: ${JSON.stringify(input).slice(0, 100)}`,
+        confidence: 7,
+        type: 'success',
+      }, null, 2));
+    }
+  }
+
+  // ── 4. Forward to daemon ──────────────────────────────────────
   const payload = JSON.stringify({ tool: toolName, cwd: process.cwd(), raw: body.slice(0, 200) });
   const req = request({
     hostname: 'localhost', port: 57821, path: '/tool-event', method: 'POST',

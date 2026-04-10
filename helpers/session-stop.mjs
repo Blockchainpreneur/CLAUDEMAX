@@ -97,6 +97,19 @@ try {
     }
   } catch {}
 
+  // ── AUTO: Compress memory via NotebookLM (background) ─────────
+  try {
+    const { spawn: spawnProc } = require('child_process');
+    const bridgeScript = join(HOME, 'claudemax', 'helpers', 'notebooklm-bridge.mjs');
+    if (existsSync(bridgeScript)) {
+      const child = spawnProc('node', [bridgeScript, 'compress-memory'], {
+        detached: true, stdio: 'ignore',
+        env: { ...process.env, PATH: `/Library/Frameworks/Python.framework/Versions/3.12/bin:${process.env.PATH}` },
+      });
+      child.unref();
+    }
+  } catch {}
+
   // ── Send to daemon ────────────────────────────────────────────
   const payload = JSON.stringify({
     cwd,

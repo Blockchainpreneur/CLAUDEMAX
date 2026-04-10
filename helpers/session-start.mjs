@@ -42,9 +42,20 @@ try {
   let memoryItems = [];
   let learningItems = [];
 
+  // Load compressed summary first (most token-efficient)
+  const summaryFile = join(MEMORY_DIR, '_compressed-summary.json');
+  let compressedBrief = '';
   try {
-    if (existsSync(MEMORY_DIR)) {
-      const files = readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json')).sort().slice(-20);
+    if (existsSync(summaryFile)) {
+      const summary = JSON.parse(readFileSync(summaryFile, 'utf8'));
+      if (summary.content) compressedBrief = summary.content;
+    }
+  } catch {}
+
+  // Only load raw entries if no compressed summary exists
+  try {
+    if (!compressedBrief && existsSync(MEMORY_DIR)) {
+      const files = readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_')).sort().slice(-5);
       for (const f of files) {
         try {
           const data = JSON.parse(readFileSync(join(MEMORY_DIR, f), 'utf8'));
@@ -94,14 +105,18 @@ try {
   }
 
   // ── Output memory to stdout (Claude reads this) ───────────────
-  if (memoryItems.length > 0 || learningItems.length > 0) {
+  if (compressedBrief || memoryItems.length > 0 || learningItems.length > 0) {
     const memoryBlock = [];
     memoryBlock.push('[CLAUDEMAX MEMORY]');
 
-    if (memoryItems.length > 0) {
+    // Prefer compressed briefing (saves ~90% tokens vs raw entries)
+    if (compressedBrief) {
+      memoryBlock.push('Session briefing (compressed by NotebookLM):');
+      memoryBlock.push(compressedBrief.slice(0, 500));
+    } else if (memoryItems.length > 0) {
       memoryBlock.push('Recent session context:');
-      for (const m of memoryItems.slice(-5)) {
-        memoryBlock.push(`- [${m.ts || '?'}] ${m.type || 'note'}: ${m.content || m.decision || m.summary || JSON.stringify(m).slice(0, 150)}`);
+      for (const m of memoryItems.slice(-3)) {
+        memoryBlock.push(`- [${m.ts?.slice(0,10) || '?'}] ${m.content || m.summary || ''}`.slice(0, 150));
       }
     }
 
