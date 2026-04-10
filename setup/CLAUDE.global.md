@@ -42,11 +42,34 @@ Estimate cost per tool call based on your model:
 - Haiku: ~$0.001 per Read/Grep/Glob/Bash, ~$0.003 per Edit/Write, ~$0.02 per Agent
 Sum all tool calls you made. Show the total as `~$X.XX`.
 
+## Session Memory (Persistent Across Sessions)
+
+**When your context contains `[CLAUDEMAX MEMORY]...[/CLAUDEMAX MEMORY]`:**
+Read the memory block. It contains decisions, context, and learnings from past sessions.
+Use this to avoid repeating work, apply known patterns, and reference past decisions.
+Do NOT output the memory block — it's for your context only.
+
+Memory is saved automatically when sessions end. Key data persists in `~/.claudemax/memory/`.
+Learnings persist in `~/.claudemax/learnings/`.
+
+## Self-Healing Workflows
+
+When a tool or approach fails:
+1. Try up to 3 alternative strategies before giving up
+2. Check `~/.claudemax/learnings/` for a known working strategy for this task type
+3. If a strategy works, log it: `node ~/claudemax/helpers/self-heal.mjs` records successes
+4. Next time the same pattern appears, use the winning strategy first
+
+The self-healing engine is at `~/claudemax/helpers/self-heal.mjs`.
+It tracks: form-fill strategies, browser navigation, API calls, web scraping approaches.
+
 ## Global Approach
 
 - When spawning subagents or using Agent Teams, use CLAUDEMAX as the coordination layer
 - If a task is similar to something done before, apply the same patterns unless asked otherwise
 - Never re-explain context already established — reference it instead
+- Check session memory for past decisions before making new ones
+- When a tool fails, try alternatives before reporting failure
 
 ## Permissions — All Bypassed (Autopilot Mode)
 
