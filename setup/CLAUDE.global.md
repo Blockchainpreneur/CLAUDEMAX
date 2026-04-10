@@ -105,35 +105,48 @@ Examples of what ENRICH adds:
 - Deploying → smoke test, rollback plan, canary monitoring
 - Designing UI → mobile-first, dark mode, empty/error/overflow states, WCAG 2.1
 
-### TOOLS Protocol
+### TOOLS Protocol — CLI First, MCP Only When Necessary
 
-When the directive contains `TOOLS:`, use those specific tools and MCPs for the task.
-gstack skills are always the base workflow. TOOLS tells you which MCPs to reach for
-on top of gstack. Use them — don't default to generic approaches when a specialized
-MCP exists.
+**ALWAYS prefer CLI tools and gstack skills over MCP servers.**
+MCP tools are heavier (token overhead for tool definitions), slower (server startup),
+and less controllable. Use CLI via Bash tool for direct execution. Only use MCP when
+there is no CLI equivalent or the MCP provides a unique capability.
 
-Available MCPs and when to use them:
+**Priority order for any task:**
+1. gstack skill (e.g., `/investigate`, `/review`, `/qa`)
+2. CLI tool via Bash (e.g., `codex review`, `firecrawl scrape`, `gws drive list`)
+3. Playwright CLI via Bash (e.g., `npx playwright test`)
+4. Browser CDP scripts (e.g., `node ~/claudemax/scripts/browser-tab.mjs`)
+5. MCP server (only if no CLI/skill alternative exists)
 
-**Zero-config (always available):**
-- `npx playwright test` / `npx playwright` — Playwright CLI for ALL browser testing (NEVER use Playwright MCP)
-- `agent-browser` — Rust-native CLI for long automations (5.7x more token-efficient than Playwright)
-- `mcp__context7__*` — latest framework/library docs (always check before coding)
-- `mcp__shadcn__*` — UI component registry, audit checklists
-- `mcp__magicuidesign-mcp__*` — animated and interactive UI components
-- `sequential-thinking` — structured step-by-step reasoning for complex decisions
-- `mcp__sentry__*` — error monitoring, stack traces, production issue triage
-
-**CLI Tools (installed globally):**
-- `gws` — Google Workspace CLI: Drive, Docs, Sheets, Slides automation
-- `codex` — OpenAI Codex CLI: adversarial code review, second opinions, challenge mode
-- `firecrawl` — structured web extraction into agent-readable markdown
-- `notebooklm-py` — document synthesis via Google NotebookLM
-- `lightrag` — large-scale RAG retrieval with knowledge graphs (when scale demands it)
+**CLI Tools (PREFERRED — use these first):**
+- `npx playwright test` — browser testing, E2E, screenshots (NEVER use Playwright MCP)
+- `agent-browser` — Rust-native browser automation (5.7x more token-efficient)
+- `codex review` / `codex` — adversarial code review, second opinions, challenge mode
+- `gws` — Google Workspace: Drive, Docs, Sheets, Slides via CLI
+- `firecrawl scrape <url>` — structured web extraction into markdown
+- `notebooklm-py` — document synthesis via NotebookLM (Python)
+- `lightrag` — large-scale RAG retrieval with knowledge graphs
 - Skill Creator — `bash ~/claudemax/skills/skill-creator/init_skill.sh <name>`
-- DESIGN.md template — `~/claudemax/setup/DESIGN.md.template` for UI governance
+- Browser CDP — `node ~/claudemax/scripts/browser-tab.mjs <url>`
+
+**gstack Skills (28 — use before any tool):**
+- `/investigate` for debugging, `/review` for code review, `/qa` for testing
+- `/ship` for deploy, `/cso` for security, `/browse` for web research
+- Full list in gstack section below
 
 **Obsidian Skills (knowledge management):**
-- Installed at `~/.claude/skills/obsidian/` — markdown notes, JSON Canvas, CLI workflows
+- `~/.claude/skills/obsidian/` — markdown notes, JSON Canvas, CLI workflows
+
+**MCP Servers (use ONLY when CLI can't do it):**
+- `mcp__context7__*` — framework docs (no CLI equivalent, MCP is correct here)
+- `mcp__shadcn__*` — UI component registry (no CLI equivalent)
+- `mcp__sentry__*` — error monitoring (SSE connection, needs MCP)
+- `mcp__supabase__*` — database operations (needs MCP for auth)
+- `mcp__github__*` — PR/issue management (prefer `gh` CLI when possible)
+- `mcp__figma__*` — design file reading (no CLI equivalent)
+- `mcp__n8n__*` — workflow automation (needs MCP for API bridge)
+- `sequential-thinking` — structured reasoning (MCP-only capability)
 
 **Token-required (add API key once):**
 - `mcp__supabase__*` — database, auth, storage, RLS policies, migrations

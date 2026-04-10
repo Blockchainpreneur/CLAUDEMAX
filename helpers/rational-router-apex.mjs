@@ -427,9 +427,8 @@ const ENRICHMENTS = {
   ],
 };
 
-// ── Tool recommendations — best instruments per task ────────────────────────
-// gstack is always the base. These add the specific MCPs and tools that make
-// each task type execute at the highest level.
+// ── Tool recommendations — CLI first, MCP only when necessary ────────────────
+// Priority: 1) gstack skill  2) CLI tool via Bash  3) Playwright CLI  4) MCP (last resort)
 const TOOL_RECS = {
   'new-feature': [
     'gstack: /office-hours → /plan-eng-review → build → /review → /qa → /cso → /ship',
