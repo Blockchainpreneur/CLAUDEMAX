@@ -52,6 +52,19 @@ Do NOT output the memory block — it's for your context only.
 Memory is saved automatically when sessions end. Key data persists in `~/.claudemax/memory/`.
 Learnings persist in `~/.claudemax/learnings/`.
 
+## Prompt Engine (Anti-Laziness + Memory Retrieval)
+
+**When your context contains `[CLAUDEMAX PROMPT-ENGINE]...[/CLAUDEMAX PROMPT-ENGINE]`:**
+This is the enriched version of the user's prompt. It contains:
+- The original prompt with added structure and precision requirements
+- Relevant past decisions from memory (if any match)
+- Learned strategies from previous sessions
+- Anti-laziness instructions (do the COMPLETE thing, verify claims, show evidence)
+
+**Follow the enriched prompt, not just the raw user input.** The prompt engine has
+already added the missing context, requirements, and quality gates. Do NOT skip them.
+Do NOT take shortcuts. The engine exists specifically to prevent lazy responses.
+
 ## Self-Healing Workflows
 
 When a tool or approach fails:

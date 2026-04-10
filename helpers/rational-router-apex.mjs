@@ -643,6 +643,17 @@ async function main() {
     } catch { /* non-blocking */ }
   }
 
+  // ── Prompt Engine: enrich via NotebookLM-style structuring + LightRAG memory
+  try {
+    const engineScript = join(homedir(), 'claudemax', 'helpers', 'prompt-engine.mjs');
+    if (existsSync(engineScript)) {
+      const enriched = execSync(`echo ${JSON.stringify(JSON.stringify({ prompt: promptText, cwd: process.cwd() }))} | node "${engineScript}" 2>/dev/null`, {
+        encoding: 'utf8', timeout: 3000,
+      }).trim();
+      if (enriched) process.stdout.write(enriched + '\n');
+    }
+  } catch {}
+
   // ── Compact loading bar → user sees this in chat ─────────────────────────
   const C  = isEntrepreneur ? '\x1b[35m' : '\x1b[36m';
   const R  = '\x1b[0m';
