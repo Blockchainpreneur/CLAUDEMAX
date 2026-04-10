@@ -123,6 +123,18 @@ Available MCPs and when to use them:
 - `sequential-thinking` — structured step-by-step reasoning for complex decisions
 - `mcp__sentry__*` — error monitoring, stack traces, production issue triage
 
+**CLI Tools (installed globally):**
+- `gws` — Google Workspace CLI: Drive, Docs, Sheets, Slides automation
+- `codex` — OpenAI Codex CLI: adversarial code review, second opinions, challenge mode
+- `firecrawl` — structured web extraction into agent-readable markdown
+- `notebooklm-py` — document synthesis via Google NotebookLM
+- `lightrag` — large-scale RAG retrieval with knowledge graphs (when scale demands it)
+- Skill Creator — `bash ~/claudemax/skills/skill-creator/init_skill.sh <name>`
+- DESIGN.md template — `~/claudemax/setup/DESIGN.md.template` for UI governance
+
+**Obsidian Skills (knowledge management):**
+- Installed at `~/.claude/skills/obsidian/` — markdown notes, JSON Canvas, CLI workflows
+
 **Token-required (add API key once):**
 - `mcp__supabase__*` — database, auth, storage, RLS policies, migrations
 - `mcp__github__*` — PRs, issues, releases, branch management
