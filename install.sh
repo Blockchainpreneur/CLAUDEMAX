@@ -432,20 +432,23 @@ install_agent_browser() {
 
 # ── Shell alias: cm → cd ~/claudemax && claude ─────────────────────────────
 install_alias() {
-  local ALIAS_LINE='alias cm="cd ~/claudemax && claude"'
-  local ALIAS_COMMENT="# CLAUDEMAX — open Claude Code from ~/claudemax"
+  local NVM_HELPER='_ensure_nvm() { [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" 2>/dev/null; }'
 
   for RC in "$HOME/.zshrc" "$HOME/.bashrc"; do
     [ -f "$RC" ] || continue
-    if grep -q "alias cm=" "$RC" 2>/dev/null; then
-      ok "Shell alias 'cm' already in $(basename $RC)"
+    # Add NVM helper if not present
+    if ! grep -q "_ensure_nvm" "$RC" 2>/dev/null; then
+      printf "\n# CLAUDEMAX — aliases for starting sessions with full autopilot\n%s\n" "$NVM_HELPER" >> "$RC"
+      echo 'alias claude="_ensure_nvm && command claude"' >> "$RC"
+      echo 'alias claudemax="_ensure_nvm && command claude"' >> "$RC"
+      echo 'alias cm="cd ~/claudemax && _ensure_nvm && command claude"' >> "$RC"
+      ok "Added claude, claudemax, cm aliases to $(basename $RC)"
     else
-      printf "\n%s\n%s\n" "$ALIAS_COMMENT" "$ALIAS_LINE" >> "$RC"
-      ok "Added 'cm' alias to $(basename $RC)"
+      ok "CLAUDEMAX aliases already in $(basename $RC)"
     fi
   done
   info "Run: source ~/.zshrc  (or open a new terminal)"
-  info "Then: cm  → opens Claude Code in ~/claudemax"
+  info "Then: claude / claudemax / cm → all start Claude Code with full autopilot"
 }
 
 # ── 9. Smoke test — verify all hooks pass ────────────────────────────────────
@@ -552,6 +555,52 @@ print_success() {
   echo ""
 }
 
+# ── Python deps (LightRAG + sentence-transformers) ───────────────────────────
+install_python_deps() {
+  local PY=""
+  for p in python3.12 python3 python; do
+    if command -v "$p" >/dev/null 2>&1; then PY="$p"; break; fi
+  done
+  if [ -z "$PY" ]; then
+    warn "Python 3 not found — LightRAG semantic search disabled (keyword fallback active)"
+    return 0
+  fi
+  local PIP="$PY -m pip"
+  $PIP install --quiet nano-vectordb numpy sentence-transformers 2>/dev/null && \
+    ok "nano-vectordb + sentence-transformers installed" || \
+    warn "Some Python deps failed — LightRAG will use TF-IDF fallback"
+}
+
+# ── Status bar ───────────────────────────────────────────────────────────────
+install_statusline() {
+  local SRC="$REPO_DIR/scripts/statusline.sh"
+  local DST="$CLAUDE_DIR/statusline.sh"
+  if [ -f "$SRC" ]; then
+    cp "$SRC" "$DST" && chmod +x "$DST"
+    # Add statusLine to settings.json if not present
+    if ! grep -q "statusLine" "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+      python3 -c "
+import json
+with open('$CLAUDE_DIR/settings.json') as f: d = json.load(f)
+d['statusLine'] = {'type': 'command', 'command': '~/.claude/statusline.sh'}
+with open('$CLAUDE_DIR/settings.json', 'w') as f: json.dump(d, f, indent=2)
+" 2>/dev/null
+    fi
+    ok "Status bar installed (model + context% + cost)"
+  fi
+}
+
+# ── LightRAG initial index ───────────────────────────────────────────────────
+install_lightrag_index() {
+  mkdir -p "$HOME/.claudemax/lightrag-workspace" "$HOME/.claudemax/lightrag-cache" "$HOME/.claudemax/prompt-cache"
+  local BRIDGE="$REPO_DIR/helpers/lightrag-bridge.mjs"
+  if [ -f "$BRIDGE" ]; then
+    node "$BRIDGE" ingest-all 2>/dev/null && \
+      ok "LightRAG index built" || \
+      warn "LightRAG index build skipped (will build on first session end)"
+  fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
   print_header
@@ -583,11 +632,20 @@ main() {
   step "9/11 MCP servers"
   install_mcp
 
-  step "10/11 agent-browser (token-efficient browser automation)"
+  step "10/14 agent-browser (token-efficient browser automation)"
   install_agent_browser
 
-  step "11/11 Shell alias (cm)"
+  step "11/14 Python dependencies (LightRAG + sentence-transformers)"
+  install_python_deps
+
+  step "12/14 Status bar"
+  install_statusline
+
+  step "13/14 Shell aliases (claude, claudemax, cm)"
   install_alias
+
+  step "14/14 LightRAG initial index"
+  install_lightrag_index
 
   step "✓    Smoke tests"
   verify_hooks
