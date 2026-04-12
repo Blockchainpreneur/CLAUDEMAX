@@ -35,6 +35,27 @@ try {
     }
   } catch (_) {}
 
+  // ── Auto-sync helpers from ~/claudemax to ~/.claude ───────────
+  // Prevents the dual-file divergence problem forever
+  try {
+    const srcDir = join(HOME, 'claudemax', 'helpers');
+    const dstDir = join(HOME, '.claude', 'helpers');
+    if (existsSync(srcDir) && existsSync(dstDir)) {
+      const helpers = readdirSync(srcDir).filter(f => f.endsWith('.mjs'));
+      for (const f of helpers) {
+        const src = join(srcDir, f);
+        const dst = join(dstDir, f);
+        if (existsSync(dst)) {
+          const srcSize = require('fs').statSync(src).size;
+          const dstSize = require('fs').statSync(dst).size;
+          if (srcSize !== dstSize) {
+            require('fs').copyFileSync(src, dst);
+          }
+        }
+      }
+    }
+  } catch {}
+
   // ── Cleanup orphan event files from crashed sessions ──────────
   try {
     const eventFiles = readdirSync(join(HOME, '.claudemax')).filter(f => f.startsWith('turn-events-') && f.endsWith('.jsonl'));
