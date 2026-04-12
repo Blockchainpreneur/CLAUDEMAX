@@ -11,7 +11,7 @@
  * Usage (from other hooks):
  *   import { recordFailure, recordSuccess, getBestStrategy } from './self-heal.mjs';
  */
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -114,6 +114,23 @@ export function getAlternatives(task) {
     { name: 'alternative', desc: 'Try an alternative tool' },
     { name: 'manual', desc: 'Fall back to manual steps' },
   ];
+}
+
+/**
+ * Get synthesized learnings from pre-computed cache.
+ * Returns a compact string with 5 rules, or null if unavailable.
+ */
+export function getSynthesizedLearnings() {
+  const synthPath = join(homedir(), '.claudemax', 'prompt-cache', 'learnings-synthesis.txt');
+  try {
+    if (existsSync(synthPath)) {
+      const age = Date.now() - statSync(synthPath).mtimeMs;
+      if (age < 86400000) { // 24hr TTL
+        return readFileSync(synthPath, 'utf8').trim();
+      }
+    }
+  } catch {}
+  return null; // caller falls back to getAllLearnings()
 }
 
 /**

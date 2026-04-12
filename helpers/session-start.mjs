@@ -12,7 +12,7 @@
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { homedir } from 'os';
-import { existsSync, readdirSync, readFileSync, mkdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync, statSync } from 'fs';
 
 const HOME = homedir();
 const MEMORY_DIR = join(HOME, '.claudemax', 'memory');
@@ -35,6 +35,79 @@ try {
     }
   } catch (_) {}
 
+  // ── Cleanup orphan event files from crashed sessions ──────────
+  try {
+    const eventFiles = readdirSync(join(HOME, '.claudemax')).filter(f => f.startsWith('turn-events-') && f.endsWith('.jsonl'));
+    for (const f of eventFiles) {
+      const pid = parseInt(f.replace('turn-events-', '').replace('.jsonl', ''));
+      if (pid && !isNaN(pid)) {
+        try { process.kill(pid, 0); } catch { // process dead — orphan file
+          try { require('fs').unlinkSync(join(HOME, '.claudemax', f)); } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  // ── NLM auth health check ──────────────────────────────────────
+  try {
+    const authScript = join(HOME, 'claudemax', 'helpers', 'nlm-auth-refresh.mjs');
+    if (existsSync(authScript)) {
+      execSync(`node "${authScript}" 2>/dev/null`, {
+        timeout: 15000,
+        env: { ...process.env, PATH: `/Library/Frameworks/Python.framework/Versions/3.12/bin:${process.env.PATH}`, PLAYWRIGHT_BROWSERS_PATH: `${HOME}/Library/Caches/ms-playwright` },
+      });
+    }
+  } catch {}
+
+  // ── Ensure project has a NLM notebook ──────────────────────────
+  try {
+    const NLM_BIN = '/Library/Frameworks/Python.framework/Versions/3.12/bin/notebooklm';
+    const projectName = process.cwd().split('/').pop();
+    const nbMapFile = join(HOME, '.claudemax', 'nlm-notebooks.json');
+
+    let nbMap = {};
+    try { if (existsSync(nbMapFile)) nbMap = JSON.parse(readFileSync(nbMapFile, 'utf8')); } catch {}
+
+    if (!nbMap[projectName]) {
+      // Create a new notebook for this project
+      try {
+        const result = execSync(
+          `${NLM_BIN} create "CLAUDEMAX: ${projectName}"`,
+          { encoding: 'utf8', timeout: 15000 }
+        ).trim();
+        const idMatch = result.match(/([a-f0-9-]{36})/);
+        if (idMatch) {
+          nbMap[projectName] = idMatch[1];
+          writeFileSync(nbMapFile, JSON.stringify(nbMap, null, 2));
+        }
+      } catch {}
+    }
+
+    // Switch to this project's notebook
+    if (nbMap[projectName]) {
+      try {
+        execSync(
+          `${NLM_BIN} use ${nbMap[projectName].slice(0, 8)}`,
+          { timeout: 5000, stdio: 'ignore' }
+        );
+      } catch {}
+    }
+  } catch {}
+
+  // ── Pre-warm LightRAG model (background, non-blocking) ─────
+  try {
+    const { spawn: spawnBg } = await import('child_process');
+    const lrCli = join(HOME, 'claudemax', 'scripts', 'lightrag-cli.py');
+    const pyBin = '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3';
+    if (existsSync(lrCli)) {
+      const child = spawnBg(pyBin, [lrCli, 'status', '--workspace', join(HOME, '.claudemax', 'lightrag-workspace')], {
+        detached: true, stdio: 'ignore',
+        env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+      });
+      child.unref();
+    }
+  } catch {}
+
   // ── Load memory ───────────────────────────────────────────────
   mkdirSync(MEMORY_DIR, { recursive: true });
   mkdirSync(LEARNINGS_DIR, { recursive: true });
@@ -42,17 +115,31 @@ try {
   let memoryItems = [];
   let learningItems = [];
 
-  // Load compressed summary first (most token-efficient)
+  // ── Fast-path: pre-computed briefing from pipeline (most token-efficient)
+  const PROMPT_CACHE = join(HOME, '.claudemax', 'prompt-cache');
+  const briefingFile = join(PROMPT_CACHE, 'session-briefing.txt');
   const summaryFile = join(MEMORY_DIR, '_compressed-summary.json');
   let compressedBrief = '';
+
+  // Priority 1: Pre-computed session briefing (from precompute-pipeline)
   try {
-    if (existsSync(summaryFile)) {
+    if (existsSync(briefingFile)) {
+      const age = Date.now() - statSync(briefingFile).mtimeMs;
+      if (age < 86400000) { // 24hr TTL
+        compressedBrief = readFileSync(briefingFile, 'utf8').trim();
+      }
+    }
+  } catch {}
+
+  // Priority 2: Legacy compressed summary from NLM
+  try {
+    if (!compressedBrief && existsSync(summaryFile)) {
       const summary = JSON.parse(readFileSync(summaryFile, 'utf8'));
       if (summary.content) compressedBrief = summary.content;
     }
   } catch {}
 
-  // Only load raw entries if no compressed summary exists
+  // Priority 3: Raw entries (only if no compressed version exists)
   try {
     if (!compressedBrief && existsSync(MEMORY_DIR)) {
       const files = readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_')).sort().slice(-5);
@@ -65,8 +152,21 @@ try {
     }
   } catch {}
 
+  // ── Learnings: prefer synthesized version ───────────────────────
+  let synthesizedLearnings = '';
+  const synthFile = join(PROMPT_CACHE, 'learnings-synthesis.txt');
   try {
-    if (existsSync(LEARNINGS_DIR)) {
+    if (existsSync(synthFile)) {
+      const age = Date.now() - statSync(synthFile).mtimeMs;
+      if (age < 86400000) { // 24hr TTL
+        synthesizedLearnings = readFileSync(synthFile, 'utf8').trim();
+      }
+    }
+  } catch {}
+
+  // Fallback: load raw learnings only if no synthesis
+  try {
+    if (!synthesizedLearnings && existsSync(LEARNINGS_DIR)) {
       const files = readdirSync(LEARNINGS_DIR).filter(f => f.endsWith('.json')).sort().slice(-10);
       for (const f of files) {
         try {
@@ -105,14 +205,14 @@ try {
   }
 
   // ── Output memory to stdout (Claude reads this) ───────────────
-  if (compressedBrief || memoryItems.length > 0 || learningItems.length > 0) {
+  if (compressedBrief || synthesizedLearnings || memoryItems.length > 0 || learningItems.length > 0) {
     const memoryBlock = [];
     memoryBlock.push('[CLAUDEMAX MEMORY]');
 
-    // Prefer compressed briefing (saves ~90% tokens vs raw entries)
+    // Prefer pre-computed briefing (saves ~70% tokens vs raw entries)
     if (compressedBrief) {
-      memoryBlock.push('Session briefing (compressed by NotebookLM):');
-      memoryBlock.push(compressedBrief.slice(0, 500));
+      memoryBlock.push('Session briefing:');
+      memoryBlock.push(compressedBrief.slice(0, 400));
     } else if (memoryItems.length > 0) {
       memoryBlock.push('Recent session context:');
       for (const m of memoryItems.slice(-3)) {
@@ -120,11 +220,33 @@ try {
       }
     }
 
-    if (learningItems.length > 0) {
+    // Prefer synthesized learnings (5 rules vs 10 raw entries)
+    if (synthesizedLearnings) {
+      memoryBlock.push('Learned patterns (synthesized):');
+      memoryBlock.push(synthesizedLearnings.slice(0, 300));
+    } else if (learningItems.length > 0) {
       memoryBlock.push('Learned patterns:');
       for (const l of learningItems.slice(-5)) {
         memoryBlock.push(`- ${l.pattern || l.key || '?'}: ${l.strategy || l.insight || l.result || '?'} (confidence: ${l.confidence || '?'})`);
       }
+    }
+
+    // Load session prediction if available
+    let prediction = '';
+    try {
+      const predFile = join(PROMPT_CACHE, 'session-prediction.txt');
+      if (existsSync(predFile)) {
+        const age = Date.now() - statSync(predFile).mtimeMs;
+        if (age < 86400000) {
+          prediction = readFileSync(predFile, 'utf8').trim();
+        }
+      }
+    } catch {}
+
+    // Add prediction to memory block
+    if (prediction) {
+      memoryBlock.push('Predicted next task:');
+      memoryBlock.push(prediction.slice(0, 200));
     }
 
     memoryBlock.push('[/CLAUDEMAX MEMORY]');

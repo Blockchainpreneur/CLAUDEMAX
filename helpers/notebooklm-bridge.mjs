@@ -11,9 +11,12 @@
  *   node notebooklm-bridge.mjs add-source <file>        — add a source document
  *   node notebooklm-bridge.mjs compress-memory          — compress session memory
  *   node notebooklm-bridge.mjs brief                    — session briefing
+ *   node notebooklm-bridge.mjs store-knowledge          — store structured knowledge as NLM source (JSON via stdin)
+ *   node notebooklm-bridge.mjs query-knowledge "q"      — query all stored session knowledge
  */
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { createHash } from 'crypto';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -50,10 +53,10 @@ switch (command) {
   case 'ask': {
     ensureNotebook();
     // Check cache first
-    const cacheKey = input.replace(/[^a-z0-9]/gi, '-').slice(0, 40);
+    const cacheKey = createHash('sha256').update(input.toLowerCase().trim()).digest('hex').slice(0, 16);
     const cacheFile = join(CACHE_DIR, `${cacheKey}.txt`);
     if (existsSync(cacheFile)) {
-      const age = Date.now() - require('fs').statSync(cacheFile).mtimeMs;
+      const age = Date.now() - statSync(cacheFile).mtimeMs;
       if (age < 3600000) { // 1hr cache
         console.log(readFileSync(cacheFile, 'utf8'));
         break;
@@ -124,14 +127,107 @@ switch (command) {
     break;
   }
 
+  case 'synthesize': {
+    ensureNotebook();
+    // Synthesize a specific type of content: learnings, briefing, anti-laziness
+    const synthType = input || 'briefing';
+    let sourceData = '';
+    if (synthType === 'learnings') {
+      const learnFiles = existsSync(join(HOME, '.claudemax', 'learnings'))
+        ? readdirSync(join(HOME, '.claudemax', 'learnings')).filter(f => f.endsWith('.json'))
+        : [];
+      for (const f of learnFiles) {
+        try {
+          const data = JSON.parse(readFileSync(join(HOME, '.claudemax', 'learnings', f), 'utf8'));
+          if (Array.isArray(data)) {
+            data.filter(d => d.type === 'success').forEach(d => {
+              sourceData += `${d.tool}: ${d.strategy} (confidence: ${d.confidence})\n`;
+            });
+          } else if (data.type === 'success') {
+            sourceData += `${data.tool}: ${data.strategy} (confidence: ${data.confidence})\n`;
+          }
+        } catch {}
+      }
+      if (sourceData.length > 10) {
+        const result = nlm(`Synthesize these tool learnings into exactly 5 concise rules. Each rule should be actionable. Format: numbered list. Learnings:\n${sourceData.slice(0, 1500)}`);
+        console.log(result);
+      } else {
+        console.log('Not enough learnings to synthesize');
+      }
+    } else {
+      // Default: briefing synthesis
+      const result = nlm(`ask "Summarize the current project state in 3 sentences"`);
+      console.log(result);
+    }
+    break;
+  }
+
+  case 'store-knowledge': {
+    ensureNotebook();
+    // Parse structured knowledge from stdin or argv input
+    let knowledge;
+    let rawInput = input;
+    // If no argv input, try reading from stdin
+    if (!rawInput) {
+      try {
+        rawInput = readFileSync('/dev/stdin', 'utf8');
+      } catch {}
+    }
+    try {
+      knowledge = JSON.parse(rawInput);
+    } catch {
+      console.error('Invalid JSON input for store-knowledge');
+      break;
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+    const doc = [
+      `# CLAUDEMAX Session Knowledge - ${date}`,
+      '',
+      '## Decisions Made',
+      ...(knowledge.decisions || []).map(d => `- ${d}`),
+      '',
+      '## Patterns That Worked',
+      ...(knowledge.patterns || []).map(p => `- ${p}`),
+      '',
+      '## Failures To Avoid',
+      ...(knowledge.failures || []).map(f => `- ${f}`),
+      '',
+      '## Next Steps',
+      ...(knowledge.nextSteps || []).map(n => `- ${n}`),
+    ].join('\n');
+
+    // Write to temp file, then add as NLM source
+    const tmpFile = join(HOME, '.claudemax', 'nlm-cache', `knowledge-${date}.md`);
+    writeFileSync(tmpFile, doc);
+    try {
+      const result = nlm(`source add "${tmpFile}" --title "CLAUDEMAX Session - ${date}"`);
+      console.log(result || 'Knowledge stored');
+    } catch (e) {
+      console.error(`[NLM store error: ${e.message?.slice(0, 80)}]`);
+      console.log('Knowledge saved locally to ' + tmpFile);
+    }
+    break;
+  }
+
+  case 'query-knowledge': {
+    ensureNotebook();
+    const answer = nlm(`ask "Based on all stored session knowledge, answer: ${input.replace(/"/g, '\\"')}"`);
+    console.log(answer);
+    break;
+  }
+
   case 'help': default:
     console.log(`NotebookLM Bridge — CLAUDEMAX
 Commands:
   ask "question"         Ask NotebookLM (cached 1hr)
   structure "prompt"     Structure prompt for precision
+  synthesize <type>      Synthesize learnings|briefing via NLM
   add-source <file>      Add document to notebook
   compress-memory        Compress session memory via NLM
   brief                  Show session briefing
+  store-knowledge        Store structured session knowledge as NLM source (JSON via stdin)
+  query-knowledge "q"    Query all stored session knowledge
   setup                  Create autopilot notebook`);
 }
 

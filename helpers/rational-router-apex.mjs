@@ -298,41 +298,6 @@ const RULES = [
   },
 ];
 
-// ── Agent display config ────────────────────────────────────────────────────
-const AGENT_LABELS = {
-  // Entrepreneur agents
-  advisor:              'giving you honest strategic advice',
-  strategist:           'thinking through the business angle',
-  writer:               'drafting your content',
-  analyst:              'analyzing the numbers',
-  // Dev agents
-  planner:              'planning the approach',
-  coder:                'writing the code',
-  reviewer:             'checking for problems',
-  tester:               'making sure it works',
-  researcher:           'finding what you need to know',
-  'security-auditor':   'checking for security issues',
-  'performance-engineer':'making it faster',
-  architect:            'designing the structure',
-};
-
-const AGENT_ICONS = {
-  advisor:              '◆ ',
-  strategist:           '◈ ',
-  writer:               '✦ ',
-  analyst:              '◇ ',
-  planner:              '▸ ',
-  coder:                '▹ ',
-  reviewer:             '▸ ',
-  tester:               '▹ ',
-  researcher:           '▸ ',
-  'security-auditor':   '▸ ',
-  'performance-engineer':'▸ ',
-  architect:            '▸ ',
-};
-
-const TIER_LABEL   = { HAIKU: 'fast', SONNET: 'smart', OPUS: 'most capable' };
-
 // ── Prompt enrichment — production context the user didn't ask for ─────────
 const ENRICHMENTS = {
   'new-feature': [
@@ -554,7 +519,8 @@ async function main() {
     /^(is |are |was |were |has |have |does |do |did |can |could |would |should |what |why |how |when |where |who |describe |explain |tell me|give me)/i.test(normalized.trim()) &&
     !ACTION_VERBS.test(normalized) &&
     !ENTREPRENEUR_INTENT.test(prompt);
-  if (isQuestion) process.exit(0);
+  const INVESTIGATION_INTENT = /\b(how does|how do|how is|how are|what causes|what happens|why does|why is|why are|where is|where does)\b.*\b(work|fail|break|crash|error|happen|run|execute|function|behave|connect|interact)\b/i;
+  if (isQuestion && !INVESTIGATION_INTENT.test(prompt)) process.exit(0);
 
   // Match rules
   const matches = RULES
@@ -647,7 +613,8 @@ async function main() {
   try {
     const engineScript = join(homedir(), 'claudemax', 'helpers', 'prompt-engine.mjs');
     if (existsSync(engineScript)) {
-      const enriched = execSync(`echo ${JSON.stringify(JSON.stringify({ prompt: promptText, cwd: process.cwd() }))} | node "${engineScript}" 2>/dev/null`, {
+      const enriched = execSync(`node "${engineScript}" 2>/dev/null`, {
+        input: JSON.stringify({ prompt: promptText, cwd: process.cwd() }),
         encoding: 'utf8', timeout: 3000,
       }).trim();
       if (enriched) process.stdout.write(enriched + '\n');
@@ -670,10 +637,24 @@ async function main() {
   process.stdout.write(`[CLAUDEMAX DISPLAY]\n${loadBar}\n[/CLAUDEMAX DISPLAY]\n`);
 
   // ── Directives → Claude reads but does NOT render ─────────────────────────
+  // Try compressed enrichments first (pre-computed by pipeline), fall back to static
   const enrichItems = ENRICHMENTS[primary.id] || [];
-  const enrichLine  = enrichItems.length
-    ? `ENRICH: production-ready — ${enrichItems.join(', ')}`
-    : '';
+  let enrichLine = '';
+  try {
+    const compressedPath = join(homedir(), '.claudemax', 'prompt-cache', 'enrichments-compressed.json');
+    if (existsSync(compressedPath)) {
+      const age = Date.now() - statSync(compressedPath).mtimeMs;
+      if (age < 86400000) { // 24hr TTL
+        const compressed = JSON.parse(readFileSync(compressedPath, 'utf8'));
+        if (compressed[primary.id]) {
+          enrichLine = `ENRICH: ${compressed[primary.id]}`;
+        }
+      }
+    }
+  } catch {}
+  if (!enrichLine && enrichItems.length) {
+    enrichLine = `ENRICH: production-ready — ${enrichItems.join(', ')}`;
+  }
 
   const toolItems = TOOL_RECS[primary.id] || [];
   const toolsLine = toolItems.length
@@ -686,11 +667,35 @@ async function main() {
     directives.push(`task:${primary.id} model:${tier} complexity:${complexity}%`);
     directives.push(`EXECUTE: ${primary.skill}`);
     directives.push(`SPAWN: ${agentList} — parallel via Task tool, run_in_background:true, ALL in ONE message`);
+    // Full autopilot: chain all steps without waiting for user input
+    const steps = primary.skill.split('→').map(s => s.trim()).filter(Boolean);
+    if (steps.length >= 2) {
+      directives.push(`AUTOCHAIN: Execute ALL steps in sequence automatically. Do NOT wait for user input between steps. Complete the full chain: ${steps.join(' → ')}. Report results only after ALL steps finish.`);
+    }
+    // Deep thinking mode: delegate complex reasoning to structured approach
+    if (complexity >= 50) {
+      directives.push(`THINK: This is a ${complexity}% complexity task. Before writing ANY code: 1) Read all relevant files completely 2) Map the full dependency chain 3) Identify every edge case 4) Plan the minimal change set. Do NOT start coding until you can explain the full approach.`);
+    }
   } else {
     directives.push(`task:${primary.id} model:${tier} → ${primary.skill}`);
   }
   if (enrichLine) directives.push(enrichLine);
   if (toolsLine)  directives.push(toolsLine);
+
+  // Inject task-specific CLAUDE.md segment if available
+  let claudemdSegment = '';
+  try {
+    const segPath = join(homedir(), '.claudemax', 'prompt-cache', `claudemd-${primary.id}.txt`);
+    if (existsSync(segPath)) {
+      const age = Date.now() - statSync(segPath).mtimeMs;
+      if (age < 86400000) {
+        claudemdSegment = readFileSync(segPath, 'utf8').trim();
+      }
+    }
+  } catch {}
+  if (claudemdSegment) {
+    directives.push(`CONTEXT: ${claudemdSegment.slice(0, 500)}`);
+  }
 
   process.stdout.write(`[CLAUDEMAX DIRECTIVE]\n${directives.join('\n')}\n[/CLAUDEMAX DIRECTIVE]\n`);
 

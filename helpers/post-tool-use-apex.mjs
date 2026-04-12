@@ -15,7 +15,8 @@ import { join } from 'path';
 import { request } from 'http';
 
 const DIR = join(homedir(), '.claudemax');
-const EVENTS_FILE = join(DIR, 'turn-events.jsonl');
+const SESSION_PID = process.ppid || process.pid;
+const EVENTS_FILE = join(DIR, `turn-events-${SESSION_PID}.jsonl`);
 const LEARNINGS_DIR = join(DIR, 'learnings');
 
 mkdirSync(DIR, { recursive: true });
@@ -44,7 +45,23 @@ try {
   appendFileSync(EVENTS_FILE, JSON.stringify(entry) + '\n');
 
   // ── 2. Self-healing: detect failures and log ──────────────────
-  const isFailure = /error|fail|timeout|ENOENT|EACCES|denied|crash|exception|not found|refused/i.test(responseStr);
+  // Smart failure detection: check structure first, then patterns
+  let isFailure = false;
+  try {
+    // For Bash: check exit code if available
+    if (toolName === 'Bash' || toolName === 'bash') {
+      isFailure = /Exit code [1-9]|exit code [1-9]|command not found|permission denied/i.test(responseStr);
+    } else if (toolName === 'Read') {
+      isFailure = /File does not exist|ENOENT|Permission denied/i.test(responseStr);
+    } else if (toolName === 'Edit' || toolName === 'Write') {
+      isFailure = /ENOENT|EACCES|not found|Permission denied|old_string.*not found/i.test(responseStr);
+    } else if (toolName === 'Agent') {
+      isFailure = /error|failed|timed out/i.test(responseStr) && !/completed|success/i.test(responseStr);
+    } else {
+      // Generic: only flag if the response is short (likely an error message) AND contains error keywords
+      isFailure = responseStr.length < 500 && /\b(error|ENOENT|EACCES|denied|refused|timed out)\b/i.test(responseStr);
+    }
+  } catch { isFailure = false; }
 
   if (isFailure && toolName !== 'unknown') {
     const key = `${toolName}`.replace(/[^a-z0-9-]/gi, '-').slice(0, 40);

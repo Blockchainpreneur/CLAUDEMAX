@@ -76,7 +76,7 @@ async function main() {
     process.exit(0);
   }
 
-  // ── Prompt enrichment mode ───────────────────────────────────────────────────
+  // ── Prompt enrichment mode (LightRAG semantic search with TF-IDF fallback)
   try {
     let promptText = '';
     if (!process.stdin.isTTY) {
@@ -92,82 +92,89 @@ async function main() {
     }
     if (!promptText || promptText.length < 5) process.exit(0);
 
-    // Extract keywords — min 3 chars, skip stopwords, deduplicated
-    const seen = new Set();
-    const keywords = promptText.toLowerCase()
-      .split(/[\s\-_.,;:!?()[\]{}"'`/\\]+/)
-      .map(w => w.replace(/[^a-z0-9]/g, ''))
-      .filter(w => w.length >= 3 && !STOPWORDS.has(w) && !seen.has(w) && seen.add(w))
-      .slice(0, 12);
+    // Priority 1: LightRAG semantic search
+    let found = false;
+    try {
+      const { execFileSync } = await import('child_process');
+      const { homedir: getHome } = await import('os');
+      const PYTHON_BIN = '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3';
+      const LIGHTRAG_CLI = join(getHome(), 'claudemax', 'scripts', 'lightrag-cli.py');
+      const WORKSPACE = join(getHome(), '.claudemax', 'lightrag-workspace');
 
-    if (keywords.length === 0) process.exit(0);
+      const result = execFileSync(PYTHON_BIN, [
+        LIGHTRAG_CLI, 'query',
+        '--workspace', WORKSPACE,
+        '--query', promptText.slice(0, 300),
+        '--top-k', '3',
+      ], {
+        encoding: 'utf8',
+        timeout: 2000,
+        env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+      }).trim();
 
-    // Build keyword frequency map for TF-IDF-inspired weighting
-    // Rare keywords (appear less) are more specific → higher weight
-    const allPatterns = loadCached(PATTERNS_PATH);
-    const storeData   = loadCached(STORE_PATH);
-
-    // Compute document frequency per keyword
-    const totalDocs  = allPatterns.length + storeData.length + 1;
-    const docFreq    = {};
-    for (const kw of keywords) {
-      let df = 0;
-      for (const p of allPatterns) {
-        const content = ((p.pattern || '') + ' ' + (p.context || '')).toLowerCase();
-        if (content.includes(kw)) df++;
+      const results = JSON.parse(result);
+      if (results.length > 0) {
+        console.log(`\n[Memory] ${results.length} relevant pattern(s) via semantic search:`);
+        results.forEach((r, i) => {
+          console.log(`  ${i + 1}. ${r.text?.slice(0, 120) || ''} (score: ${r.score})`);
+        });
+        found = true;
       }
-      for (const e of storeData) {
-        const content = ((e.content || '') + ' ' + (e.value || '')).toLowerCase();
-        if (content.includes(kw)) df++;
+    } catch { /* LightRAG unavailable, fall back to TF-IDF */ }
+
+    // Priority 2: TF-IDF keyword fallback
+    if (!found) {
+      const seen = new Set();
+      const keywords = promptText.toLowerCase()
+        .split(/[\s\-_.,;:!?()[\]{}"'`/\\]+/)
+        .map(w => w.replace(/[^a-z0-9]/g, ''))
+        .filter(w => w.length >= 3 && !STOPWORDS.has(w) && !seen.has(w) && seen.add(w))
+        .slice(0, 12);
+
+      if (keywords.length > 0) {
+        const allPatterns = loadCached(PATTERNS_PATH);
+        const storeData = loadCached(STORE_PATH);
+        const totalDocs = allPatterns.length + storeData.length + 1;
+        const docFreq = {};
+        for (const kw of keywords) {
+          let df = 0;
+          for (const p of allPatterns) {
+            if (((p.pattern || '') + ' ' + (p.context || '')).toLowerCase().includes(kw)) df++;
+          }
+          for (const e of storeData) {
+            if (((e.content || '') + ' ' + (e.value || '')).toLowerCase().includes(kw)) df++;
+          }
+          docFreq[kw] = df;
+        }
+
+        const matches = [];
+        for (const p of allPatterns) {
+          if (!p.pattern) continue;
+          const content = ((p.pattern) + ' ' + (p.context || '')).toLowerCase();
+          const matched = keywords.filter(k => content.includes(k));
+          if (matched.length === 0) continue;
+          const score = matched.reduce((s, kw) => s + Math.log((totalDocs + 1) / ((docFreq[kw] || 0) + 1)), 0);
+          matches.push({ score, summary: p.pattern.slice(0, 120), matched: matched.slice(0, 3) });
+        }
+        for (const entry of storeData) {
+          const content = ((entry.content || '') + ' ' + (entry.value || '') + ' ' + (entry.summary || '')).toLowerCase();
+          const matched = keywords.filter(k => content.includes(k));
+          if (matched.length === 0) continue;
+          const score = matched.reduce((s, kw) => s + Math.log((totalDocs + 1) / ((docFreq[kw] || 0) + 1)), 0);
+          const summary = (entry.content || entry.value || '').slice(0, 120);
+          if (summary) matches.push({ score, summary, matched: matched.slice(0, 3) });
+        }
+
+        matches.sort((a, b) => b.score - a.score);
+        const top = matches.slice(0, 3).filter(m => m.summary);
+        if (top.length > 0) {
+          console.log(`\n[Memory] ${top.length} relevant pattern(s) from past sessions:`);
+          top.forEach((m, i) => {
+            const tags = m.matched.length ? ` (${m.matched.join(', ')})` : '';
+            console.log(`  ${i + 1}. ${m.summary}${tags}`);
+          });
+        }
       }
-      docFreq[kw] = df;
-    }
-
-    // Score function: TF-IDF inspired — rare keywords score higher
-    function scoreEntry(content, matchedKws) {
-      return matchedKws.reduce((sum, kw) => {
-        const idf = Math.log((totalDocs + 1) / ((docFreq[kw] || 0) + 1));
-        return sum + idf;
-      }, 0);
-    }
-
-    const matches = [];
-
-    // Search learned patterns
-    for (const p of allPatterns) {
-      if (!p.pattern) continue;
-      const content   = ((p.pattern) + ' ' + (p.context || '')).toLowerCase();
-      const matched   = keywords.filter(k => content.includes(k));
-      if (matched.length === 0) continue;
-      const score = scoreEntry(content, matched);
-      matches.push({
-        score,
-        summary:  p.pattern.slice(0, 120),
-        matched:  matched.slice(0, 3),
-        success:  p.success !== false,
-      });
-    }
-
-    // Search auto-memory store
-    for (const entry of storeData) {
-      const content = ((entry.content || '') + ' ' + (entry.value || '') + ' ' + (entry.summary || '')).toLowerCase();
-      const matched = keywords.filter(k => content.includes(k));
-      if (matched.length === 0) continue;
-      const score   = scoreEntry(content, matched);
-      const summary = (entry.content || entry.value || '').slice(0, 120);
-      if (summary) matches.push({ score, summary, matched: matched.slice(0, 3), success: true });
-    }
-
-    // Sort: score desc, prefer successful patterns
-    matches.sort((a, b) => (b.score - a.score) || (b.success ? 1 : -1));
-    const top = matches.slice(0, 3).filter(m => m.summary);
-
-    if (top.length > 0) {
-      console.log(`\n[Memory] ${top.length} relevant pattern(s) from past sessions:`);
-      top.forEach((m, i) => {
-        const tags = m.matched.length ? ` (${m.matched.join(', ')})` : '';
-        console.log(`  ${i + 1}. ${m.summary}${tags}`);
-      });
     }
   } catch { /* never block */ }
 

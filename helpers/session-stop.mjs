@@ -10,7 +10,8 @@
  * Always exits 0.
  */
 import { request } from 'http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
+import { spawn } from 'child_process';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -86,23 +87,37 @@ try {
     }
   } catch {}
 
-  // ── Prune old memory (keep last 50 entries) ───────────────────
+  // ── Prune old memory (separate limits by type) ────────────
   try {
-    const files = require('fs').readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json')).sort();
-    if (files.length > 50) {
-      const toDelete = files.slice(0, files.length - 50);
-      for (const f of toDelete) {
-        try { require('fs').unlinkSync(join(MEMORY_DIR, f)); } catch {}
+    const allFiles = readdirSync(MEMORY_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_')).sort();
+    const sessionFiles = allFiles.filter(f => !f.includes('-prompt') && !f.includes('-decisions'));
+    const promptFiles = allFiles.filter(f => f.includes('-prompt'));
+    const decisionFiles = allFiles.filter(f => f.includes('-decisions'));
+
+    const prune = (files, limit) => {
+      if (files.length > limit) {
+        for (const f of files.slice(0, files.length - limit)) {
+          try { unlinkSync(join(MEMORY_DIR, f)); } catch {}
+        }
       }
-    }
+    };
+
+    prune(sessionFiles, 50);   // keep last 50 session summaries
+    prune(promptFiles, 30);    // keep last 30 prompts
+    prune(decisionFiles, 10);  // keep last 10 decision logs
   } catch {}
 
-  // ── AUTO: Compress memory via NotebookLM (background) ─────────
+  // ── AUTO: Pre-computation pipeline (background) ──────────────
+  // Replaces NLM-only compress with full pipeline:
+  // 1. Ingest memory into vector index
+  // 2. NLM compress memory → session-briefing.txt
+  // 3. NLM synthesize learnings → learnings-synthesis.txt
+  // 4. NLM anti-laziness directives → anti-laziness-{type}.txt
+  // 5. Compress ENRICHMENTS → enrichments-compressed.json
   try {
-    const { spawn: spawnProc } = require('child_process');
-    const bridgeScript = join(HOME, 'claudemax', 'helpers', 'notebooklm-bridge.mjs');
-    if (existsSync(bridgeScript)) {
-      const child = spawnProc('node', [bridgeScript, 'compress-memory'], {
+    const pipelineScript = join(HOME, 'claudemax', 'helpers', 'precompute-pipeline.mjs');
+    if (existsSync(pipelineScript)) {
+      const child = spawn('node', [pipelineScript], {
         detached: true, stdio: 'ignore',
         env: { ...process.env, PATH: `/Library/Frameworks/Python.framework/Versions/3.12/bin:${process.env.PATH}` },
       });

@@ -19,8 +19,9 @@ import { request } from 'http';
 
 const HOME         = homedir();
 const DIR          = join(HOME, '.claudemax');
-const EVENTS_FILE  = join(DIR, 'turn-events.jsonl');
-const TASK_FILE    = join(DIR, 'current-task.json');
+const SESSION_PID  = process.ppid || process.pid;
+const EVENTS_FILE  = join(DIR, `turn-events-${SESSION_PID}.jsonl`);
+const TASK_FILE    = join(DIR, `current-task-${SESSION_PID}.json`);
 const DECISIONS    = join(DIR, 'decisions.md');
 
 // Human-readable action labels (gap: non-technical visibility)
