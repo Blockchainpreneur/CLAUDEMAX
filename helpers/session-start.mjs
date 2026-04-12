@@ -70,65 +70,24 @@ try {
   } catch {}
 
   // ── NLM setup (BACKGROUND — never blocks session start) ────────
-  // Auth refresh + notebook creation run in a detached child process.
+  // Auth refresh + notebook creation run in a detached script.
   // Session starts instantly. NLM is ready by the time the user types.
+  // Logs to ~/.claudemax/nlm-setup.log for debugging.
   try {
-    const nlmSetupScript = `
-      const { execSync } = require('child_process');
-      const { readFileSync, writeFileSync, existsSync, mkdirSync } = require('fs');
-      const { join } = require('path');
-      const HOME = require('os').homedir();
-      const NLM_BIN = '/Library/Frameworks/Python.framework/Versions/3.12/bin/notebooklm';
-      const nbMapFile = join(HOME, '.claudemax', 'nlm-notebooks.json');
-      const projectName = '${process.cwd().split('/').pop()}';
-
-      // Step 1: Auth refresh
+    const nlmSetup = join(HOME, 'claudemax', 'helpers', 'nlm-session-setup.mjs');
+    const projectName = process.cwd().split('/').pop();
+    if (existsSync(nlmSetup)) {
+      // Use execSync with shell backgrounding — the only pattern that reliably
+      // survives process.exit(0) in Node.js
+      const logFile = join(HOME, '.claudemax', 'nlm-setup-stderr.log');
       try {
-        const authScript = join(HOME, 'claudemax', 'helpers', 'nlm-auth-refresh.mjs');
-        if (existsSync(authScript)) {
-          execSync('node "' + authScript + '"', {
-            timeout: 20000, stdio: 'ignore',
-            env: { ...process.env, PATH: '/Library/Frameworks/Python.framework/Versions/3.12/bin:' + process.env.PATH, PLAYWRIGHT_BROWSERS_PATH: join(HOME, 'Library/Caches/ms-playwright') },
-          });
-        }
+        execSync(
+          '/bin/bash -c \'export PATH="/Library/Frameworks/Python.framework/Versions/3.12/bin:$PATH" && node "' + nlmSetup + '" "' + projectName + '" >> "' + logFile + '" 2>&1 &\'',
+          { timeout: 2000, stdio: 'ignore' }
+        );
       } catch {}
-
-      // Step 2: Create project notebook if needed
-      try {
-        mkdirSync(join(HOME, '.claudemax'), { recursive: true });
-        let nbMap = {};
-        try { if (existsSync(nbMapFile)) nbMap = JSON.parse(readFileSync(nbMapFile, 'utf8')); } catch {}
-
-        if (!nbMap[projectName]) {
-          const result = execSync(
-            NLM_BIN + ' create "CLAUDEMAX: ' + projectName + '"',
-            { encoding: 'utf8', timeout: 15000 }
-          ).trim();
-          const idMatch = result.match(/([a-f0-9-]{36})/);
-          if (idMatch) {
-            nbMap[projectName] = idMatch[1];
-            writeFileSync(nbMapFile, JSON.stringify(nbMap, null, 2));
-          }
-        }
-
-        // Step 3: Switch to project notebook
-        if (nbMap[projectName]) {
-          execSync(NLM_BIN + ' use ' + nbMap[projectName].slice(0, 8),
-            { timeout: 5000, stdio: 'ignore' });
-        }
-      } catch {}
-    `;
-
-    const { spawn: spawnBg } = require('child_process');
-    const child = spawnBg('node', ['-e', nlmSetupScript], {
-      detached: true, stdio: 'ignore',
-      env: { ...process.env, PATH: `/Library/Frameworks/Python.framework/Versions/3.12/bin:${process.env.PATH}` },
-    });
-    child.unref();
+    }
   } catch {}
-
-  // ── REMOVED: Old sync NLM auth + notebook code ────────────────
-  // (moved to background process above)
 
   // ── Pre-warm LightRAG model (background, non-blocking) ─────
   try {
